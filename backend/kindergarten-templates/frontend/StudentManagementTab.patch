@@ -1,0 +1,15 @@
+*** Begin Patch
+*** Update File: src/pages/admin/StudentManagementTab.tsx
+@@
+-  if (loading) return <Typography>載入中...</Typography>;
+-
+-  useEffect(() => {
+-    fetchStudents();
+-  }, []);
++  // Do not early-return before hooks — render a loading UI instead but keep hooks running
++  useEffect(() => {
++    fetchStudents();
++  }, []);
++
++  if (loading) return <Typography>載入中...</Typography>;
+*** End Patch

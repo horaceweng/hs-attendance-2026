@@ -1,0 +1,24 @@
+*** Begin Patch
+*** Update File: src/reports/reports.service.ts
+@@
+-    // build map by studentId+date from attendanceRecords
+-    const key = `${rec.studentId}_${rec.date}`;
+-    map[key] = { attendance: rec };
++    // build map by studentId+date from attendanceRecords
++    const key = `${rec.studentId}_${rec.date}`;
++    map[key] = { attendance: rec };
+@@
+-    // then overlay leaveRequests (so attendance wins if present)
+-    for (const leave of leaveRequests) {
+-      const key = `${leave.studentId}_${leave.date}`;
+-      map[key] = { ...map[key], leave };
+-    }
++    // then overlay leaveRequests — give leaveRequests precedence (pending/approved) over attendance
++    for (const leave of leaveRequests) {
++      const key = `${leave.studentId}_${leave.date}`;
++      // Only overwrite if leave is pending or approved
++      if (['pending', 'approved'].includes(leave.status)) {
++        map[key] = { ...map[key], leave };
++      }
++    }
+*** End Patch

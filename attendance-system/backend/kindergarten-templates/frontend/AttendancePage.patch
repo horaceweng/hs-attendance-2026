@@ -1,0 +1,17 @@
+*** Begin Patch
+*** Update File: src/pages/AttendancePage.tsx
+@@
+-    // Build payload including default 'present' for others
+-    const payload = students.map(s => ({ studentId: s.id, status: s.status || 'present' }));
+-    await api.submitDailyAttendance(payload);
++    // Only submit explicit exceptions to avoid creating default 'present' records that block leave visibility
++    const payload = students
++      .map(s => ({ studentId: s.id, status: s.status || 'present' }))
++      .filter(rec => rec.status !== 'present');
++
++    if (payload.length > 0) {
++      await api.submitDailyAttendance(payload);
++    } else {
++      // No exceptions to submit — avoid writing defaults
++    }
+*** End Patch

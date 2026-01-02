@@ -1,0 +1,160 @@
+/* HolidayCalendar.css */
+
+/* 直接強制加載樣式，確保不被覆蓋 */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
+
+/* 全局設定假日樣式變數 */
+:root {
+  --holiday-text-color: #ff0000;
+  --holiday-bg-color: rgba(255, 235, 235, 0.8);
+  --holiday-border-color: #ff6961;
+  --holiday-shadow: 0 0 0 2px rgba(255, 105, 97, 0.5);
+  --holiday-text-shadow: 0 0 2px rgba(255, 0, 0, 0.4);
+  --holiday-scale: 1.15;
+}
+
+/* 強制重置所有日期按鈕樣式為默認 */
+html body .MuiPickersDay-root,
+html body .MuiPickersDay-dayWithMargin,
+html body .MuiButtonBase-root[role="gridcell"],
+html body button[role="gridcell"],
+html body td[role="cell"] button {
+  background-color: transparent !important;
+  color: rgba(0, 0, 0, 0.87) !important;
+  font-weight: normal !important;
+  border-radius: 50% !important;
+  font-family: 'Roboto', sans-serif !important;
+  transition: all 0.2s ease-in-out !important;
+  transform: scale(1) !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+/* 假日日期樣式 - 超強視覺區隔 */
+html body .holiday-date,
+html body button.holiday-date,
+html body button.holiday-date:focus,
+html body .MuiPickersDay-root.holiday-date,
+html body button[data-is-holiday="true"],
+html body .MuiPickersDay-root[data-is-holiday="true"] {
+  background-color: var(--holiday-bg-color) !important;
+  color: var(--holiday-text-color) !important;
+  font-weight: 900 !important;
+  box-shadow: var(--holiday-shadow) !important;
+  position: relative !important;
+  text-shadow: var(--holiday-text-shadow) !important;
+  transform: scale(var(--holiday-scale)) !important;
+  z-index: 5 !important;
+}
+
+/* 假日鼠標懸停效果 */
+html body button.holiday-date:hover,
+html body button[data-is-holiday="true"]:hover {
+  background-color: rgba(255, 105, 97, 0.2) !important;
+}
+
+/* 確保週末正確高亮顯示 - 紅色數字，與假日相同樣式 */
+html body [data-weekend="true"],
+html body button[data-weekend="true"],
+html body .MuiPickersDay-root[data-weekend="true"],
+html body button[role="gridcell"][data-weekend="true"],
+html body td[role="cell"] button[data-weekend="true"] {
+  background-color: var(--holiday-bg-color) !important;
+  color: var(--holiday-text-color) !important;
+  font-weight: 900 !important;
+  box-shadow: var(--holiday-shadow) !important;
+  position: relative !important;
+  text-shadow: var(--holiday-text-shadow) !important;
+  transform: scale(var(--holiday-scale)) !important;
+  z-index: 5 !important;
+}
+
+/* 週末鼠標懸停效果 */
+html body button[data-weekend="true"]:hover {
+  background-color: rgba(255, 105, 97, 0.2) !important;
+}
+
+/* 確保選中日期的樣式優先級高於其他所有樣式 */
+html body .MuiPickersDay-root.Mui-selected,
+html body button[role="gridcell"].Mui-selected,
+html body td[role="cell"] button.Mui-selected {
+  background-color: #1976d2 !important;
+  color: white !important;
+  z-index: 10 !important; /* 更高的z-index確保優先級 */
+  position: relative !important;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.7) !important;
+  transform: scale(var(--holiday-scale)) !important;
+  text-shadow: none !important;
+}
+
+/* 選中日期的鼠標懸停效果 */
+html body .MuiPickersDay-root.Mui-selected:hover {
+  background-color: #1565c0 !important;
+}
+
+/* 增強日期按鈕邊框和過渡效果 */
+html body .MuiPickersDay-root {
+  border: 1px solid transparent !important;
+  margin: 1px !important;
+  transition: all 0.2s ease-in-out !important;
+}
+
+/* 當前日期（今天）樣式 */
+html body .MuiPickersDay-today {
+  border-color: #1976d2 !important;
+  font-weight: bold !important;
+}
+
+/* 確保日期文本在任何背景下都可見 */
+html body .MuiPickersCalendarHeader-label,
+html body .MuiTypography-root {
+  color: rgba(0, 0, 0, 0.87) !important;
+  font-weight: bold !important;
+}
+
+/* 重要：直接在日曆上強制應用樣式 */
+html body .holiday-calendar-container button[data-weekend="true"],
+html body .holiday-calendar-container button.holiday-date,
+html body .holiday-calendar-container button[data-is-holiday="true"] {
+  color: var(--holiday-text-color) !important;
+  font-weight: 900 !important;
+  text-shadow: var(--holiday-text-shadow) !important;
+  transform: scale(var(--holiday-scale)) !important;
+  box-shadow: var(--holiday-shadow) !important;
+  background-color: var(--holiday-bg-color) !important;
+}
+
+/* 添加紅點標記以增強視覺效果 */
+html body .holiday-marker {
+  position: absolute !important;
+  top: 2px !important;
+  right: 2px !important;
+  width: 6px !important;
+  height: 6px !important;
+  background-color: #ff0000 !important;
+  border-radius: 50% !important;
+  z-index: 11 !important;
+}
+
+/* 深色模式適配 */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --holiday-text-color: #ff6060;
+    --holiday-bg-color: rgba(40, 40, 40, 0.8);
+    --holiday-border-color: #ff6961;
+    --holiday-shadow: 0 0 0 2px rgba(255, 105, 97, 0.5);
+    --holiday-text-shadow: 0 0 2px rgba(255, 96, 96, 0.4);
+  }
+  
+  html body .holiday-date,
+  html body button.holiday-date,
+  html body button[data-weekend="true"],
+  html body .MuiPickersDay-root[data-weekend="true"],
+  html body button[role="gridcell"][data-weekend="true"],
+  html body button[data-is-holiday="true"],
+  html body .MuiPickersDay-root[data-is-holiday="true"] {
+    color: var(--holiday-text-color) !important;
+    background-color: var(--holiday-bg-color) !important;
+    box-shadow: var(--holiday-shadow) !important;
+  }
+}

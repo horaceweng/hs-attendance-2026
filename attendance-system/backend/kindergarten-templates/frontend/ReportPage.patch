@@ -1,0 +1,26 @@
+*** Begin Patch
+*** Update File: src/pages/ReportPage.tsx
+@@
+-const STATUS_OPTIONS = ['present', 'absent', 'late', 'leave_early', 'on_leave'];
++const STATUS_OPTIONS = ['present', 'absent', 'late', 'leave_early', 'on_leave'];
+@@
+-    const [filters, setFilters] = useState({
+-        startDate: getTodayString(),
+-        endDate: getTodayString(),
+-        grades: [] as string[],
+-        status: '' as string, // single selected status
+-        ageFilter: 'all',
+-    });
++    const [filters, setFilters] = useState({
++        startDate: getTodayString(),
++        endDate: getTodayString(),
++        grades: [] as string[],
++        status: '' as string, // single selected status
++        ageFilter: 'all',
++    });
+@@
+-                const apiParams = { startDate: filters.startDate, endDate: filters.endDate, statuses: filters.status ? [filters.status] : undefined, ...gradeParams };
++                // Send statuses as an array when a single status is chosen to match backend DTO: statuses?: string[]
++                const apiParams = { startDate: filters.startDate, endDate: filters.endDate, statuses: filters.status ? [filters.status] : undefined, ...gradeParams };
+                 res = await api.getAttendanceReport(apiParams);
+*** End Patch

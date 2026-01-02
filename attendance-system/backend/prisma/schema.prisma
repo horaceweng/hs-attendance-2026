@@ -1,0 +1,262 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ===================================
+//  Enums (列舉)
+// ===================================
+
+enum Role {
+  teacher
+  GA_specialist
+
+  @@map("role")
+}
+
+enum Gender {
+  male
+  female
+  other
+
+  @@map("gender")
+}
+
+enum AttendanceStatus {
+  present
+  absent
+  late
+  leave_early
+  on_leave
+
+  @@map("attendance_status")
+}
+
+enum LeaveRequestStatus {
+  pending
+  approved
+  rejected
+
+  @@map("leave_request_status")
+}
+
+enum SeasonType {
+  fall    // 秋季
+  winter  // 冬季
+  spring  // 春季
+  summer  // 夏季
+
+  @@map("season_type")
+}
+
+enum StudentStatus {
+  active
+  transferred_out
+  graduated
+  suspended
+
+  @@map("student_status")
+}
+
+// ===================================
+//  Models (資料模型)
+// ===================================
+
+model Grade {
+  id    Int     @id @default(autoincrement())
+  name  String  @db.VarChar(255)
+  
+  classes Class[]
+
+  @@map("grades")
+}
+
+model Class {
+  id          Int     @id @default(autoincrement())
+  name        String  @db.VarChar(255)
+  gradeId     Int     @map("grade_id")
+  schoolYear  Int     @map("school_year") @db.Year
+
+  grade                 Grade @relation(fields: [gradeId], references: [id])
+  enrollments           StudentClassEnrollment[]
+  teacherAssignments    TeacherClassAssignment[]
+  attendanceRecords     AttendanceRecord[]
+
+  @@map("classes")
+}
+
+model User {
+  id          Int     @id @default(autoincrement())
+  name        String  @db.VarChar(255)
+  role        Role
+
+  // 一個老師可能有多個班級任期
+  classAssignments          TeacherClassAssignment[]
+  
+  // 建立的出缺勤紀錄
+  createdAttendanceRecords  AttendanceRecord[]       @relation("CreatedBy")
+  
+  // 建立的請假單
+  createdLeaveRequests      LeaveRequest[]           @relation("CreatedBy")
+  
+  // 審核的請假單
+  approvedLeaveRequests     LeaveRequest[]           @relation("ApprovedBy")
+
+  @@map("users")
+}
+
+model Student {
+  id              Int           @id @default(autoincrement())
+  studentId       String        @unique @map("student_id") @db.VarChar(255)
+  name            String        @db.VarChar(255)
+  birthday        DateTime      @db.Date
+  gender          Gender
+  status          StudentStatus @default(active)
+  enrollmentDate  DateTime      @map("enrollment_date") @db.Date
+  departureDate   DateTime?     @map("departure_date") @db.Date
+  departureReason String?       @map("departure_reason") @db.Text
+
+  enrollments         StudentClassEnrollment[]
+  attendanceRecords   AttendanceRecord[]
+  leaveRequests       LeaveRequest[]
+
+  @@map("students")
+}
+
+model StudentClassEnrollment {
+  id          Int       @id @default(autoincrement())
+  studentId   Int       @map("student_id")
+  classId     Int       @map("class_id")
+  schoolYear  Int       @map("school_year") @db.Year
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  student Student @relation(fields: [studentId], references: [id])
+  class   Class   @relation(fields: [classId], references: [id])
+
+  @@map("student_class_enrollments")
+}
+
+model TeacherClassAssignment {
+  id          Int      @id @default(autoincrement())
+  teacherId   Int      @map("teacher_id")
+  classId     Int      @map("class_id")
+  schoolYear  String   @map("school_year") @db.VarChar(255)
+  startDate   DateTime? @map("start_date") @db.Date
+  endDate     DateTime? @map("end_date") @db.Date
+  isActive    Boolean  @default(true) @map("is_active")
+  notes       String?  @db.Text
+
+  teacher User  @relation(fields: [teacherId], references: [id])
+  class   Class @relation(fields: [classId], references: [id])
+
+  @@map("teacher_class_assignments")
+}
+
+
+model AttendanceRecord {
+  id            Int       @id @default(autoincrement())
+  studentId     Int       @map("student_id")
+  classId       Int       @map("class_id")
+  attendanceDate DateTime  @map("attendance_date") @db.Date
+  status        AttendanceStatus
+  leaveTypeId   Int?      @map("leave_type_id")
+  note          String?   @db.Text
+  createdById   Int       @map("created_by")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  
+  student       Student   @relation(fields: [studentId], references: [id])
+  class         Class     @relation(fields: [classId], references: [id])
+  leaveType     LeaveType? @relation(fields: [leaveTypeId], references: [id])
+  createdBy     User      @relation("CreatedBy", fields: [createdById], references: [id])
+
+  @@unique([studentId, attendanceDate]) // <-- 加入這一行
+  @@map("attendance_records")
+}
+
+model LeaveRequest {
+  id            Int       @id @default(autoincrement())
+  studentId     Int       @map("student_id")
+  leaveTypeId   Int       @map("leave_type_id")
+  startDate     DateTime  @map("start_date") @db.Date
+  endDate       DateTime  @map("end_date") @db.Date
+  startTime     DateTime? @map("start_time") @db.Time
+  endTime       DateTime? @map("end_time") @db.Time
+  isFullDay     Boolean   @default(true) @map("is_full_day")
+  reason        String?   @db.Text
+  status        LeaveRequestStatus @default(pending)
+  createdById   Int       @map("created_by")
+  approvedById  Int?      @map("approved_by")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  student       Student     @relation(fields: [studentId], references: [id])
+  leaveType     LeaveType   @relation(fields: [leaveTypeId], references: [id])
+  createdBy     User        @relation("CreatedBy", fields: [createdById], references: [id])
+  approvedBy    User?       @relation("ApprovedBy", fields: [approvedById], references: [id])
+  
+  @@map("leave_requests")
+}
+
+model LeaveType {
+  id              Int      @id @default(autoincrement())
+  name            String   @db.VarChar(255)
+  description     String?  @db.Text
+
+  attendanceRecords AttendanceRecord[]
+  leaveRequests     LeaveRequest[]
+
+  @@map("leave_types")
+}
+
+model AcademicYear {
+  id            Int       @id @default(autoincrement())
+  year          Int       @db.Year  // 學年，例如 2025
+  name          String    @db.VarChar(255)  // 學年名稱，例如 "2025-2026 學年"
+  startDate     DateTime  @map("start_date") @db.Date
+  endDate       DateTime  @map("end_date") @db.Date
+  isActive      Boolean   @default(true) @map("is_active")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  
+  seasons       Season[]
+
+  @@map("academic_years")
+}
+
+model Season {
+  id            Int        @id @default(autoincrement())
+  name          String     @db.VarChar(255)
+  type          SeasonType
+  startDate     DateTime   @map("start_date") @db.Date
+  endDate       DateTime   @map("end_date") @db.Date
+  academicYearId Int       @map("academic_year_id")
+  isActive      Boolean    @default(true) @map("is_active")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+  
+  academicYear  AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  holidays      Holiday[]
+
+  @@map("seasons")
+}
+
+model Holiday {
+  id            Int       @id @default(autoincrement())
+  date          DateTime  @db.Date
+  description   String    @db.VarChar(255)
+  seasonId      Int       @map("season_id")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  
+  season        Season    @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+
+  @@map("holidays")
+}

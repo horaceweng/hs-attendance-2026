@@ -4,7 +4,14 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; connect-src 'self' http://localhost:3001 https://attendance-backend-v7uh.onrender.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:;" />
+    <!--
+      以下 CSP 為開發環境用的預設值(僅允許本機後端 http://localhost:3001)。
+      正式環境部署到 Render Static Site 時,請改由 Render dashboard 的
+      「Response Headers」設定 Content-Security-Policy,將 connect-src
+      指向實際的後端網域,以覆蓋此處的 meta tag(靜態 HTML 無法在建置時
+      動態注入環境變數到 meta tag 內容)。
+    -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; connect-src 'self' http://localhost:3001; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:;" />
     <title>學生出缺勤系統</title>
   </head>
   <body>

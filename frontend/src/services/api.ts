@@ -24,8 +24,9 @@ import type {
   UpdateStudentEnrollmentPayload,
 } from '../types/api-requests';
 
-// Allow overriding the API base URL via Vite env var when building/deploying.
-// In development this falls back to http://localhost:3001
+// API 基底網址:優先使用建置時注入的 VITE_API_BASE_URL(Render Static Site
+// 部署時於 dashboard 環境變數設定實際後端網址);開發環境未設定時則
+// fallback 為本機後端 http://localhost:3001。
 const baseURL = (import.meta.env && import.meta.env.VITE_API_BASE_URL) || 'http://localhost:3001';
 
 const apiClient = axios.create({

@@ -150,7 +150,6 @@ const StudentManagementTab: React.FC = () => {
              cls.name === '一年一班' ||
              cls.name === '一年二班';
     });
-    console.log('過濾後的一年級班級:', firstGradeClasses.map(c => c.name));
     setFilteredClasses(firstGradeClasses);
     
     // 如果只有一個一年級班級，則直接選中它

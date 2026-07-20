@@ -94,7 +94,6 @@ const ClassManagementTab: React.FC = () => {
         try {
           const teachersResponse = await api.getClassTeachers(classItem.id);
           teachersMap[classItem.id] = teachersResponse.data;
-          console.log(`班級 ${classItem.id} (${classItem.name}) 導師資料:`, teachersResponse.data);
         } catch (err) {
           console.error(`獲取班級 ${classItem.id} 的導師資料失敗`, err);
         }
@@ -125,8 +124,6 @@ const ClassManagementTab: React.FC = () => {
   useEffect(() => {
     fetchClasses();
     fetchTeachers();
-    
-    console.log("初始化時載入班級和導師資料");
   }, []);
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -224,7 +221,7 @@ const ClassManagementTab: React.FC = () => {
       notes: ''
     });
     
-    // 获取该班级的现有导师
+    // 獲取該班級的現有導師
     try {
       const response = await api.getClassTeachers(classData.id);
       setClassTeachers(response.data);

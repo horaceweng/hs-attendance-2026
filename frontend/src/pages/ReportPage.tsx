@@ -1,5 +1,3 @@
-// in frontend/src/pages/ReportPage.tsx --- FINAL, COMPLETE, AND CORRECTED
-
 import React, { useState, useEffect } from 'react';
 import { Box, Button, FormControl, InputLabel, MenuItem, Select, TextField, Typography, CircularProgress, Alert, Paper, TableContainer, Table, TableHead, TableRow, TableCell, TableBody, Chip, OutlinedInput, Checkbox, ListItemText, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material/Select';
@@ -242,7 +240,6 @@ export const ReportPage: React.FC = () => {
     );
     const renderUnresolvedAbsenceReportTable = () => (<TableContainer component={Paper}><Table><TableHead><TableRow><TableCell>缺席日期</TableCell><TableCell>班級</TableCell><TableCell>學生姓名</TableCell></TableRow></TableHead><TableBody>{reportData.map((row) => (<TableRow key={row.id}><TableCell>{new Date(row.attendanceDate).toLocaleDateString()}</TableCell><TableCell>{row.class.name}</TableCell><TableCell>{row.student.name}</TableCell></TableRow>))}</TableBody></Table></TableContainer>);
 
-    // 【新增】這就是我們遺漏的總渲染函式
     const renderReportContent = () => {
         if (!isReportGenerated) return null; // 如果還沒點過按鈕，什麼都不顯示
         if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;
@@ -300,7 +297,7 @@ export const ReportPage: React.FC = () => {
             {reportType === 'pending_leave' && <Paper sx={{p: 2, mb: 3}}><Box sx={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 2}}><GradeFilter /><FormControl fullWidth><InputLabel>假單建立時間</InputLabel><Select name="ageFilter" value={filters.ageFilter} label="假單建立時間" onChange={handleSelectChange}><MenuItem value="all">全部</MenuItem><MenuItem value="within_3_days">三日內</MenuItem><MenuItem value="over_3_days">大於三日</MenuItem></Select></FormControl></Box></Paper>}
             {reportType === 'unresolved_absence' && <Paper sx={{p: 2, mb: 3}}><Box sx={{display: 'grid', gridTemplateColumns: '1fr', gap: 2}}><GradeFilter /></Box></Paper>}
             
-            {/* 【修正】結果區域，統一呼叫 renderReportContent */}
+            {/* 結果區域，統一呼叫 renderReportContent */}
             {renderReportContent()}
 
             {/* 駁回假單對話框 */}

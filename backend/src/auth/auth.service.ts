@@ -1,4 +1,3 @@
-// in src/auth/auth.service.ts
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -70,8 +69,6 @@ export class AuthService {
   // 根據 ID 獲取用戶資料
   async getUserById(id: number) {
     try {
-      console.log(`Looking up user with ID: ${id}`);
-
       if (!id || isNaN(id)) {
         throw new Error(`Invalid user ID: ${id}`);
       }
@@ -83,8 +80,6 @@ export class AuthService {
       if (!user) {
         throw new Error(`User with ID ${id} not found`);
       }
-
-      console.log(`Successfully found user: ${user.name}, role: ${user.role}`);
 
       // 不回傳敏感資訊
       // eslint-disable-next-line @typescript-eslint/no-unused-vars

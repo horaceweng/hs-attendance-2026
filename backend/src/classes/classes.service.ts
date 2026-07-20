@@ -1,5 +1,3 @@
-// in src/classes/classes.service.ts --- UPDATED
-
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Role } from '@prisma/client';
@@ -9,11 +7,7 @@ export class ClassesService {
     constructor(private prisma: PrismaService) {}
 
     async findAll(user: { userId: number; role: string }) {
-        // 【偵錯日誌】將收到的 user 物件完整印出
-        console.log('[ClassesService] Starting findAll. Received user object:', JSON.stringify(user));
-
         if (!user || !user.role) {
-            console.log('[ClassesService] User object or user.role is missing. Returning empty array.');
             return [];
         }
 
@@ -22,11 +16,8 @@ export class ClassesService {
             where: { isActive: true },
             select: { id: true, year: true }
         });
-        
-        console.log(`[ClassesService] Found active academic year:`, activeAcademicYear);
-        
+
         if (!activeAcademicYear) {
-            console.log('[ClassesService] No active academic year found. Returning all classes.');
             // 如果沒有活躍學年，則使用舊的邏輯
             if (user.role === 'GA_specialist') {
                 return this.prisma.class.findMany({
@@ -50,10 +41,8 @@ export class ClassesService {
 
         // 使用活躍學年的年份來過濾班級
         const activeYear = activeAcademicYear.year;
-        console.log(`[ClassesService] Filtering classes for active academic year: ${activeYear}`);
 
         if (user.role === 'GA_specialist') {
-            console.log('[ClassesService] Condition met: user.role is GA_specialist. Returning classes from active academic year.');
             return this.prisma.class.findMany({
                 where: { schoolYear: activeYear },
                 orderBy: { id: 'asc' },
@@ -61,7 +50,6 @@ export class ClassesService {
         }
 
         if (user.role === 'teacher') {
-            console.log(`[ClassesService] Condition met: user.role is teacher. Querying classes for teacherId: ${user.userId} from active academic year.`);
             return this.prisma.class.findMany({
                 where: {
                     AND: [
@@ -78,7 +66,6 @@ export class ClassesService {
             });
         }
 
-        console.log(`[ClassesService] No condition met for role: ${user.role}. Returning empty array.`);
         return [];
     }
     

@@ -73,11 +73,11 @@ export class ReportsService {
             include: { leaveType: true },
         });
 
-        // 【核心修正】將報表邏輯改回與每日點名頁一致，pending 和 approved 的假單都視為 on_leave 的基礎
+        // 報表邏輯與每日點名頁一致，pending 和 approved 的假單都視為 on_leave 的基礎
         const leaveExceptions = await this.prisma.leaveRequest.findMany({
             where: {
                 studentId: { in: studentIds },
-                status: { in: ['approved', 'pending'] }, // <-- 同時考慮 pending 和 approved
+                status: { in: ['approved', 'pending'] }, // 同時考慮 pending 和 approved
                 OR: [
                     { startDate: { lte: endDate }, endDate: { gte: startDate } },
                 ],
@@ -239,7 +239,7 @@ export class ReportsService {
         },
     });
 
-    // 【核心修正】改用標準化的時間戳來進行日期比對
+    // 改用標準化的時間戳來進行日期比對
     const unresolvedAbsences = absentRecords.filter(absentRecord => {
         // 將缺席日期標準化為 UTC 的午夜時間戳 (一個純數字)
         const absenceDateTime = new Date(absentRecord.attendanceDate).setUTCHours(0, 0, 0, 0);

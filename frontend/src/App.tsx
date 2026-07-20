@@ -1,5 +1,3 @@
-// in frontend/src/App.tsx --- THEME-AWARE VERSION
-
 import React from 'react';
 import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom';
 import { Box, AppBar, Toolbar, Button, useMediaQuery, createTheme, ThemeProvider, CssBaseline } from '@mui/material';

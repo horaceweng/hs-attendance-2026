@@ -172,13 +172,7 @@ export class AcademicService {
     
     // 過濾掉空的季節條目並確保所有布爾值正確
     const validSeasons = academicYear.seasons.filter(season => season !== null && season.id !== null);
-    
-    // 輸出詳細調試信息
-    console.log(`學年ID=${id} 找到 ${academicYear.seasons.length} 個季節記錄，其中有效記錄 ${validSeasons.length} 個`);
-    if (academicYear.seasons.length > 0 && validSeasons.length === 0) {
-      console.log(`警告: 學年ID=${id} 的季節數據可能有問題，原始數據:`, JSON.stringify(academicYear.seasons));
-    }
-    
+
     return {
       ...academicYear,
       isActive: Boolean(academicYear.isActive),
@@ -194,17 +188,14 @@ export class AcademicService {
     const isActive = Boolean(data.isActive);
     
     try {
-      console.log(`創建學年: 學年=${data.year}, 名稱=${data.name}, 啟用=${isActive}`);
-      
       // 如果需要啟用新學年，先把所有現有學年設為不啟用
       if (isActive) {
         await this.prisma.academicYear.updateMany({
           where: {},  // 更新所有學年
           data: { isActive: false }
         });
-        console.log('已將所有現有學年設為停用');
       }
-      
+
       // 創建新學年，如果需要啟用就直接設為啟用
       const newYear = await this.prisma.academicYear.create({
         data: {
@@ -215,29 +206,20 @@ export class AcademicService {
           isActive: isActive  // 直接使用傳入的啟用狀態
         }
       });
-      
-      console.log(`學年創建成功: ID=${newYear.id}, 年度=${newYear.year}, 啟用=${newYear.isActive}`);
-      
+
       // 確認新學年狀態
       const verifiedYear = await this.prisma.academicYear.findUnique({
         where: { id: newYear.id }
       });
-      
-      if (verifiedYear) {
-        console.log(`確認學年狀態: ID=${verifiedYear.id}, 啟用=${verifiedYear.isActive}`);
-        
-        // 如果應該啟用但沒有啟用，進行修復
-        if (isActive && !verifiedYear.isActive) {
-          console.log('學年應該啟用但實際未啟用，進行修復');
-          await this.prisma.academicYear.update({
-            where: { id: newYear.id },
-            data: { isActive: true }
-          });
-        }
-      } else {
-        console.log(`警告: 無法驗證新學年 ID=${newYear.id} 的狀態`);
+
+      // 如果應該啟用但沒有啟用，進行修復
+      if (verifiedYear && isActive && !verifiedYear.isActive) {
+        await this.prisma.academicYear.update({
+          where: { id: newYear.id },
+          data: { isActive: true }
+        });
       }
-      
+
       let promotionResults: { promoted: number; graduated: number } | undefined;
       
       // 如果選擇自動升級學生
@@ -269,26 +251,7 @@ export class AcademicService {
         include: { grade: true },
         orderBy: { gradeId: 'asc' }
       });
-      
-      console.log(`${schoolYear} 學年中有 ${classes.length} 個班級`);
-      
-      if (classes.length === 0) {
-        console.log(`警告: ${schoolYear} 學年中沒有找到班級`);
-        
-        // 查看是否有任何班級在系統中
-        const allClasses = await this.prisma.class.findMany({
-          take: 5,
-          orderBy: { schoolYear: 'desc' }
-        });
-        
-        if (allClasses.length > 0) {
-          console.log(`系統中有班級，最近的學年是: ${allClasses[0].schoolYear}`);
-          console.log(`示例班級: ${allClasses[0].name} (ID: ${allClasses[0].id}, 年級: ${allClasses[0].gradeId})`);
-        } else {
-          console.log('系統中沒有任何班級');
-        }
-      }
-      
+
       return classes;
     } catch (error) {
       console.error(`獲取 ${schoolYear} 學年班級時出錯:`, error);
@@ -302,61 +265,49 @@ export class AcademicService {
    */
   async promoteStudents(academicYearId: number): Promise<{ promoted: number; graduated: number }> {
     try {
-      console.log(`開始處理學年ID=${academicYearId} 的學生升級...`);
-      
       // 檢查學年是否存在
       const academicYear = await this.prisma.academicYear.findUnique({
         where: { id: academicYearId }
       });
-      
+
       if (!academicYear) {
-        console.log(`錯誤: ID=${academicYearId} 的學年不存在`);
         throw new Error(`學年 ${academicYearId} 不存在`);
       }
-      
+
       const newSchoolYear = academicYear.year;
-      
-      // 我們不在這裡管理學年的啟用狀態，因為這應該由createAcademicYear處理
-      console.log(`學年ID=${academicYearId}, 年度=${newSchoolYear} 存在，繼續學生升級流程`);
-      
+
       // 獲取所有活躍學生的當前班級註冊 (上一學年)
       const previousSchoolYear = newSchoolYear - 1;
-      
-      console.log(`當前學年: ${newSchoolYear}, 上一學年: ${previousSchoolYear}`);
-      
+
       // 檢查上一學年是否存在
       const previousYearExists = await this.prisma.class.findFirst({
         where: { schoolYear: previousSchoolYear }
       });
-      
+
       if (!previousYearExists) {
-        console.log(`警告：在系統中找不到 ${previousSchoolYear} 學年的班級資料。將創建新班級而不升級學生。`);
-        
-        // 獲取所有年級
+        // 找不到上一學年的班級資料，直接為新學年創建班級而不升級學生
         const grades = await this.prisma.grade.findMany({
           orderBy: { id: 'asc' }
         });
-        
+
         if (grades.length === 0) {
-          console.log('警告：系統中沒有任何年級資料');
           return { promoted: 0, graduated: 0 };
         }
-        
+
         // 為每個年級創建一個班級
         const classesToCreate = grades.map(grade => ({
           name: `${grade.name}班`,
           gradeId: grade.id,
           schoolYear: newSchoolYear
         }));
-        
+
         await this.prisma.class.createMany({
           data: classesToCreate
         });
-        
-        console.log(`已為 ${newSchoolYear} 學年創建 ${classesToCreate.length} 個基本班級`);
+
         return { promoted: 0, graduated: 0 };
       }
-      
+
       // 查詢所有活躍學生
       const activeStudentEnrollments = await this.prisma.studentClassEnrollment.findMany({
         where: {
@@ -374,26 +325,8 @@ export class AcademicService {
           },
         },
       });
-      
-      console.log(`找到 ${activeStudentEnrollments.length} 個活躍學生需要升級`);
-      
-      if (activeStudentEnrollments.length === 0) {
-        console.log(`警告：在 ${previousSchoolYear} 學年中沒有找到任何學生班級註冊`);
-        
-        // 嘗試查看是否有任何學生註冊
-        const anyEnrollments = await this.prisma.studentClassEnrollment.findMany({
-          take: 5
-        });
-        
-        console.log(`數據庫中有 ${anyEnrollments.length} 個學生班級註冊記錄`);
-        if (anyEnrollments.length > 0) {
-          console.log(`示例：學生ID=${anyEnrollments[0].studentId}, 班級ID=${anyEnrollments[0].classId}, 學年=${anyEnrollments[0].schoolYear}`);
-        }
-      }
-      
+
       // 先為新學年創建所有班級
-      console.log(`為 ${newSchoolYear} 學年創建班級...`);
-      
       // 獲取上一學年的班級作為模板
       const previousYearClasses = await this.prisma.class.findMany({
         where: {
@@ -411,22 +344,16 @@ export class AcademicService {
         orderBy: { gradeId: 'asc' }
       });
       
-      console.log(`發現 ${previousYearClasses.length} 個上一學年班級, ${existingNewYearClasses.length} 個新學年已存在班級`);
-      
       // 創建新學年班級的映射 (gradeId => classId)
       const newYearClassesByGradeId = new Map<number, number>();
-      
+
       // 如果新學年沒有班級，則創建
       if (existingNewYearClasses.length === 0) {
-        console.log(`為 ${newSchoolYear} 學年創建班級...`);
-        
         // 獲取所有年級
         const grades = await this.prisma.grade.findMany({
           orderBy: { id: 'asc' }
         });
-        
-        console.log(`找到 ${grades.length} 個年級作為創建班級的基礎`);
-        
+
         // 如果有上一學年班級，則使用它們的命名規則
         if (previousYearClasses.length > 0) {
           // 按年級分組
@@ -471,8 +398,6 @@ export class AcademicService {
             await this.prisma.class.createMany({
               data: classesToCreate
             });
-            console.log(`成功為 ${newSchoolYear} 學年創建了 ${classesToCreate.length} 個班級`);
-            console.log(`班級名稱示例: ${classesToCreate.map(c => c.name).join(', ')}`);
           }
         } else {
           // 沒有上一學年班級，為每個年級創建標準班級
@@ -490,8 +415,6 @@ export class AcademicService {
             await this.prisma.class.createMany({
               data: classesToCreate
             });
-            console.log(`成功為 ${newSchoolYear} 學年創建了 ${classesToCreate.length} 個班級`);
-            console.log(`班級名稱示例: ${classesToCreate.map(c => c.name).join(', ')}`);
           }
         }
       }
@@ -513,9 +436,6 @@ export class AcademicService {
         }
       }
       
-      console.log(`${newSchoolYear} 學年共有 ${allNewYearClasses.length} 個班級可用於學生升級`);
-      console.log(`班級年級對應關係: ${JSON.stringify(Object.keys(existingClassesByGradeId))}`);
-      
       // 檢查是否為所有可能的年級都有班級
       const grades = await this.prisma.grade.findMany({
         orderBy: { id: 'asc' }
@@ -524,7 +444,6 @@ export class AcademicService {
       // 為缺失的年級創建班級
       for (const grade of grades) {
         if (!existingClassesByGradeId[grade.id]) {
-          console.log(`為缺少的 ${grade.id} 年級創建班級`);
           const newClass = await this.prisma.class.create({
             data: {
               name: `${grade.name}班`,
@@ -559,7 +478,6 @@ export class AcademicService {
           });
           
           if (existingEnrollment) {
-            console.log(`學生 ${enrollment.student.name} (ID: ${enrollment.student.id}) 已經在 ${newSchoolYear} 學年有班級註冊`);
             continue;
           }
           
@@ -575,12 +493,8 @@ export class AcademicService {
                 classId: nextClass.id,
                 schoolYear: newSchoolYear,
               });
-              
-              console.log(`學生 ${enrollment.student.name} (ID: ${enrollment.student.id}) 從 ${currentGradeId} 年級升級到 ${nextGradeId} 年級 (班級 ID: ${nextClass.id})`);
             } else {
-              console.log(`警告: 找不到 ${nextGradeId} 年級的班級，學生 ${enrollment.student.name} (ID: ${enrollment.student.id}) 無法升級`);
-              
-              // 嘗試為此年級創建一個新班級
+              // 找不到下一年級的班級，嘗試為此年級創建一個新班級
               try {
                 const grade = await this.prisma.grade.findFirst({
                   where: { id: nextGradeId }
@@ -594,17 +508,13 @@ export class AcademicService {
                       schoolYear: newSchoolYear
                     }
                   });
-                  
-                  console.log(`為 ${nextGradeId} 年級創建了一個新班級 (ID: ${newClass.id})`);
-                  
+
                   // 創建新學年的班級註冊
                   enrollmentsToCreate.push({
                     studentId: enrollment.student.id,
                     classId: newClass.id,
                     schoolYear: newSchoolYear,
                   });
-                  
-                  console.log(`學生 ${enrollment.student.name} (ID: ${enrollment.student.id}) 從 ${currentGradeId} 年級升級到 ${nextGradeId} 年級 (班級 ID: ${newClass.id})`);
                 }
               } catch (error) {
                 console.error(`為 ${nextGradeId} 年級創建新班級時出錯:`, error);
@@ -613,7 +523,6 @@ export class AcademicService {
           } else {
             // 如果沒有下一年級，學生畢業
             graduatedStudentIds.push(enrollment.student.id);
-            console.log(`學生 ${enrollment.student.name} (ID: ${enrollment.student.id}) 從 ${currentGradeId} 年級畢業`);
           }
         } catch (error) {
           console.error(`處理學生 ID=${enrollment.student.id} 時出錯:`, error);
@@ -622,8 +531,6 @@ export class AcademicService {
       
       // 如果沒有找到學生，但有上一學年的班級，嘗試創建一個測試學生進行升級
       if (activeStudentEnrollments.length === 0 && previousYearClasses.length > 0) {
-        console.log('嘗試為每個年級的班級創建演示學生註冊...');
-        
         // 尋找或創建一個測試學生
         let demoStudent = await this.prisma.student.findFirst({
           where: {
@@ -643,7 +550,6 @@ export class AcademicService {
                 enrollmentDate: new Date(`${newSchoolYear}-09-01`)
               }
             });
-            console.log(`創建了演示學生 (ID: ${demoStudent.id})`);
           } catch (error) {
             console.error('創建演示學生失敗:', error);
           }
@@ -667,7 +573,6 @@ export class AcademicService {
                   classId: cls.id,
                   schoolYear: newSchoolYear
                 });
-                console.log(`為班級 ${cls.name} (ID: ${cls.id}) 創建了演示學生註冊`);
               }
             } catch (error) {
               console.error(`為班級 ${cls.id} 創建演示學生註冊失敗:`, error);
@@ -686,15 +591,12 @@ export class AcademicService {
               data: enrollmentsToCreate,
               skipDuplicates: true, // 跳過重複的記錄
             });
-            console.log(`成功創建 ${enrollmentsToCreate.length} 個學生的新班級註冊`);
-          } else {
-            console.log('沒有學生需要升級');
           }
-          
+
           // 批量更新畢業學生的狀態
           if (graduatedStudentIds.length > 0) {
             await prisma.student.updateMany({
-              where: { 
+              where: {
                 id: { in: graduatedStudentIds }
               },
               data: {
@@ -703,34 +605,9 @@ export class AcademicService {
                 departureReason: '畢業',
               },
             });
-            console.log(`成功將 ${graduatedStudentIds.length} 個學生標記為畢業`);
           }
         });
-        
-        // 驗證操作成功，但不再修改學年啟用狀態
-        console.log(`學生升級/畢業處理完成`);
-        
-        
-        // 驗證班級和學生註冊是否正確
-        const createdClasses = await this.prisma.class.findMany({
-          where: { schoolYear: newSchoolYear }
-        });
-        
-        const createdEnrollments = await this.prisma.studentClassEnrollment.findMany({
-          where: { schoolYear: newSchoolYear }
-        });
-        
-        console.log(`已再次確認 ${newSchoolYear} 學年設為啟用`);
-        console.log(`驗證: ${createdClasses.length} 個班級和 ${createdEnrollments.length} 個學生註冊已創建`);
-        
-        if (createdClasses.length > 0) {
-          console.log(`班級樣本: ID=${createdClasses[0].id}, 名稱=${createdClasses[0].name}, 學年=${createdClasses[0].schoolYear}, 年級ID=${createdClasses[0].gradeId}`);
-        }
-        
-        if (createdEnrollments.length > 0) {
-          console.log(`學生註冊樣本: ID=${createdEnrollments[0].id}, 學生ID=${createdEnrollments[0].studentId}, 班級ID=${createdEnrollments[0].classId}, 學年=${createdEnrollments[0].schoolYear}`);
-        }
-        
+
         return {
           promoted: enrollmentsToCreate.length,
           graduated: graduatedStudentIds.length

@@ -86,10 +86,7 @@ const AcademicTermsTab: React.FC = () => {
           ...year,
           isActive: year.isActive === true || year.isActive === 1 || year.isActive === '1' || year.isActive === 'true'
         })) : [];
-        
-        console.log('原始學年數據:', yearsRes.data);
-        console.log('處理後學年數據:', processedYears);
-        
+
         setAcademicYears(processedYears);
         setSeasons(seasonsRes.data);
       } catch (err) {
@@ -287,8 +284,7 @@ const AcademicTermsTab: React.FC = () => {
         if (autoPromoteStudents) {
           try {
             const promotionResult = await api.promoteStudents(newYearId);
-            console.log('升級結果:', promotionResult.data);
-            
+
             if (promotionResult.data && typeof promotionResult.data === 'object') {
               let message = '';
               

@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Role } from '@prisma/client';
+import { CreateClassDto, UpdateClassDto } from './dto/class.dto';
+import { AssignTeacherDto } from './dto/assign-teacher.dto';
 
 @Injectable()
 export class ClassesService {
@@ -75,7 +77,7 @@ export class ClassesService {
         }
     }
     
-    async create(data: { name: string; description?: string }, user: { userId: number; role: string }) {
+    async create(data: CreateClassDto, user: { userId: number; role: string }) {
         // 只有管理員可以創建班級
         await this.checkIsAdmin(user);
         
@@ -92,7 +94,7 @@ export class ClassesService {
         });
     }
     
-    async update(id: number, data: { name?: string; description?: string }, user: { userId: number; role: string }) {
+    async update(id: number, data: UpdateClassDto, user: { userId: number; role: string }) {
         // 只有管理員可以更新班級
         await this.checkIsAdmin(user);
         

@@ -4,6 +4,7 @@ import { Box, FormControl, InputLabel, MenuItem, Select, Typography, CircularPro
 import type { SelectChangeEvent } from '@mui/material/Select';
 import * as api from '../services/api';
 import { formatAcademicYear } from '../utils/dateUtils';
+import type { StatisticsReportRow, LeaveTypeCount } from '../types/reports';
 
 const GRADE_OPTIONS = Array.from({ length: 12 }, (_, i) => String(i + 1));
 const TERMS = [
@@ -30,7 +31,7 @@ export const StatisticsReportPage: React.FC = () => {
     grades: [] as string[],
     studentId: ''
   });
-  const [reportData, setReportData] = useState<any[]>([]);
+  const [reportData, setReportData] = useState<StatisticsReportRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [isReportGenerated, setIsReportGenerated] = useState(false);
@@ -152,15 +153,15 @@ export const StatisticsReportPage: React.FC = () => {
 
   // 渲染統計報表表格
   // 計算有效出席率
-  const calculateEffectiveAttendanceRate = (student: any): string => {
+  const calculateEffectiveAttendanceRate = (student: StatisticsReportRow): string => {
     // 如果總天數為0，則返回N/A
     if (student.totalDays <= 0) return 'N/A';
-    
+
     // 計算所有請假總天數（含所有假別和狀態）
     let totalLeaveDays = 0;
-    
+
     // 加總所有假別的總請假天數（包含approved, pending, rejected）
-    Object.values(student.leaveTypeCounts).forEach((leaveData: any) => {
+    Object.values(student.leaveTypeCounts).forEach((leaveData: LeaveTypeCount) => {
       // 將所有請假天數和小時數轉換為總天數
       totalLeaveDays += leaveData.total.days + (leaveData.total.hours / 8);
     });
@@ -253,17 +254,10 @@ export const StatisticsReportPage: React.FC = () => {
     const totalStudents = reportData.length;
     
     // 收集所有假別統計
-    const leaveTypeStats: { 
-      [type: string]: {
-        approved: { days: number; hours: number };
-        pending: { days: number; hours: number };
-        rejected: { days: number; hours: number };
-        total: { days: number; hours: number };
-      }
-    } = {};
-    
+    const leaveTypeStats: { [type: string]: LeaveTypeCount } = {};
+
     reportData.forEach(student => {
-      Object.entries(student.leaveTypeCounts).forEach(([type, data]: [string, any]) => {
+      Object.entries(student.leaveTypeCounts).forEach(([type, data]: [string, LeaveTypeCount]) => {
         if (!leaveTypeStats[type]) {
           leaveTypeStats[type] = {
             approved: { days: 0, hours: 0 },

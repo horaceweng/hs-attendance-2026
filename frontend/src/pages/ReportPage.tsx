@@ -3,6 +3,12 @@ import { Box, Button, FormControl, InputLabel, MenuItem, Select, TextField, Typo
 import type { SelectChangeEvent } from '@mui/material/Select';
 import * as api from '../services/api';
 import { getUserRole } from '../services/auth'; // Import getUserRole
+import type {
+    AttendanceReportRow,
+    PendingLeaveReportRow,
+    UnresolvedAbsenceReportRow,
+    AttendanceOverviewReportRow,
+} from '../types/reports';
 
 const getTodayString = () => new Date().toISOString().split('T')[0];
 const GRADE_OPTIONS = Array.from({ length: 12 }, (_, i) => String(i + 1));
@@ -32,9 +38,9 @@ export const ReportPage: React.FC = () => {
         endDate: getTodayString(),
         grades: [] as string[],
         status: '' as string, // single selected status
-        ageFilter: 'all',
+        ageFilter: 'all' as 'all' | 'within_3_days' | 'over_3_days',
     });
-    const [reportData, setReportData] = useState<any[]>([]);
+    const [reportData, setReportData] = useState<AttendanceOverviewReportRow[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [isReportGenerated, setIsReportGenerated] = useState(false); // 用來追蹤是否已點擊過產生報表
@@ -167,17 +173,17 @@ export const ReportPage: React.FC = () => {
                     </TableRow>
                 </TableHead>
                 <TableBody>
-                    {reportData.map((row) => (
+                    {(reportData as AttendanceReportRow[]).map((row) => (
                         <TableRow key={row.id}>
                             <TableCell>{row.date}</TableCell>
                             <TableCell>{row.className}</TableCell>
                             <TableCell>{row.studentName}</TableCell>
                             <TableCell>
-                                <Chip 
-                                    label={formatStatus(row.status, row.leaveTypeName, row.leaveStatus)} 
+                                <Chip
+                                    label={formatStatus(row.status, row.leaveTypeName, row.leaveStatus)}
                                     size="small"
-                                    color={row.status === 'on_leave' ? 
-                                        (row.leaveStatus === 'approved' ? 'success' : 
+                                    color={row.status === 'on_leave' ?
+                                        (row.leaveStatus === 'approved' ? 'success' :
                                          row.leaveStatus === 'pending' ? 'warning' : 'default')
                                         : 'default'
                                     }
@@ -203,7 +209,7 @@ export const ReportPage: React.FC = () => {
                     </TableRow>
                 </TableHead>
                 <TableBody>
-                    {reportData.map((row) => (
+                    {(reportData as PendingLeaveReportRow[]).map((row) => (
                         <TableRow key={row.id}>
                             <TableCell>{new Date(row.createdAt).toLocaleDateString()}</TableCell>
                             <TableCell>{row.student.name}</TableCell>
@@ -238,7 +244,7 @@ export const ReportPage: React.FC = () => {
             </Table>
         </TableContainer>
     );
-    const renderUnresolvedAbsenceReportTable = () => (<TableContainer component={Paper}><Table><TableHead><TableRow><TableCell>缺席日期</TableCell><TableCell>班級</TableCell><TableCell>學生姓名</TableCell></TableRow></TableHead><TableBody>{reportData.map((row) => (<TableRow key={row.id}><TableCell>{new Date(row.attendanceDate).toLocaleDateString()}</TableCell><TableCell>{row.class.name}</TableCell><TableCell>{row.student.name}</TableCell></TableRow>))}</TableBody></Table></TableContainer>);
+    const renderUnresolvedAbsenceReportTable = () => (<TableContainer component={Paper}><Table><TableHead><TableRow><TableCell>缺席日期</TableCell><TableCell>班級</TableCell><TableCell>學生姓名</TableCell></TableRow></TableHead><TableBody>{(reportData as UnresolvedAbsenceReportRow[]).map((row) => (<TableRow key={row.id}><TableCell>{new Date(row.attendanceDate).toLocaleDateString()}</TableCell><TableCell>{row.class.name}</TableCell><TableCell>{row.student.name}</TableCell></TableRow>))}</TableBody></Table></TableContainer>);
 
     const renderReportContent = () => {
         if (!isReportGenerated) return null; // 如果還沒點過按鈕，什麼都不顯示

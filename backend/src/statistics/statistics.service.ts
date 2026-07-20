@@ -18,6 +18,12 @@ interface AcademicPeriod {
   endDate: Date;
 }
 
+// $queryRaw 查詢 seasons 表所得到的單筆日期區間（原始欄位為 snake_case）
+interface SeasonDateRangeRow {
+  start_date: Date;
+  end_date: Date;
+}
+
 // 回傳的統計資料結構
 export interface StatisticsReportRow {
   studentId: number;
@@ -221,11 +227,8 @@ export class StatisticsService {
         // 計算實際請假天數（排除假日）
         const leaveDays = this.calculateLeaveDays(leave.startDate, leave.endDate, holidayDates);
         
-        // 由於 Prisma 可能沒有正確生成 TypeScript 類型，我們在這裡直接使用 any 類型
-        const leaveAny = leave as any;
-        
         // 處理全天請假
-        if (leaveAny.isFullDay) {
+        if (leave.isFullDay) {
           // 根據請假狀態增加天數
           if (leaveStatus === 'approved') {
             leaveTypeCounts[leaveTypeName].approved.days += leaveDays;
@@ -239,8 +242,8 @@ export class StatisticsService {
           leaveTypeCounts[leaveTypeName].total.days += leaveDays;
         } else {
           // 處理時數請假
-          if (leaveAny.startTime && leaveAny.endTime) {
-            const hours = this.calculateLeaveHours(leaveAny.startTime, leaveAny.endTime) * leaveDays;
+          if (leave.startTime && leave.endTime) {
+            const hours = this.calculateLeaveHours(leave.startTime, leave.endTime) * leaveDays;
             
             // 根據請假狀態增加時數
             if (leaveStatus === 'approved') {
@@ -449,21 +452,21 @@ export class StatisticsService {
     const { startDate, endDate } = await this.getDateRange(queryDto);
     
     // Build the query conditions based on the queryDto
-    const where: any = {
-      attendanceDate: { 
-        gte: new Date(startDate), 
-        lte: new Date(endDate) 
+    const where: Prisma.AttendanceRecordWhereInput = {
+      attendanceDate: {
+        gte: new Date(startDate),
+        lte: new Date(endDate)
       }
     };
-    
+
     if (queryDto.classId) {
       where.classId = parseInt(queryDto.classId.toString());
     }
-    
+
     if (queryDto.studentId) {
       where.studentId = parseInt(queryDto.studentId.toString());
     }
-    
+
     // Get all attendance records in the date range
     const attendanceRecords = await this.prisma.attendanceRecord.findMany({ where });
 
@@ -508,7 +511,7 @@ export class StatisticsService {
     });
 
     // 一次撈取範圍內所有出缺勤紀錄，再於記憶體中依班級分組，避免逐班查詢造成 N+1
-    const where: any = {
+    const where: Prisma.AttendanceRecordWhereInput = {
       attendanceDate: {
         gte: new Date(startDate),
         lte: new Date(endDate)
@@ -548,7 +551,7 @@ export class StatisticsService {
     const { startDate, endDate } = await this.getDateRange(queryDto);
     
     // Build where condition for students
-    const where: any = {};
+    const where: Prisma.StudentWhereInput = {};
     if (queryDto.classId) {
       where.enrollments = {
         some: {
@@ -616,22 +619,22 @@ export class StatisticsService {
     const dates = this.generateDateRange(new Date(startDate), new Date(endDate));
     
     // Build where condition for attendance records
-    const where: any = {
-      attendanceDate: { 
-        gte: new Date(startDate), 
-        lte: new Date(endDate) 
+    const where: Prisma.AttendanceRecordWhereInput = {
+      attendanceDate: {
+        gte: new Date(startDate),
+        lte: new Date(endDate)
       }
     };
-    
+
     if (queryDto.classId) {
       where.classId = parseInt(queryDto.classId.toString());
     }
-    
+
     // Get all attendance records in the date range
     const attendanceRecords = await this.prisma.attendanceRecord.findMany({ where });
-    
+
     // Get total number of students for calculating attendance rate
-    const totalStudentsQuery: any = {};
+    const totalStudentsQuery: Prisma.StudentClassEnrollmentWhereInput = {};
     if (queryDto.classId) {
       totalStudentsQuery.classId = parseInt(queryDto.classId.toString());
     }
@@ -685,12 +688,12 @@ export class StatisticsService {
     
     // If season is provided, use season start/end dates
     if (queryDto.seasonId) {
-      const season = await this.prisma.$queryRaw`
+      const season = await this.prisma.$queryRaw<SeasonDateRangeRow[]>`
         SELECT start_date, end_date FROM seasons WHERE id = ${queryDto.seasonId}
       `;
-      
+
       if (Array.isArray(season) && season.length > 0) {
-        const seasonData = season[0] as any;
+        const seasonData = season[0];
         return {
           startDate: this.formatDate(new Date(seasonData.start_date)),
           endDate: this.formatDate(new Date(seasonData.end_date))

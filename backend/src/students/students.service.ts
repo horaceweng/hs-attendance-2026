@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { StudentStatus } from '@prisma/client';
+import { CreateStudentDto, UpdateStudentDto } from './dto/student.dto';
+import { CreateStudentEnrollmentDto, UpdateStudentEnrollmentDto } from './dto/student-enrollment.dto';
 
 @Injectable()
 export class StudentsService {
@@ -62,7 +64,7 @@ export class StudentsService {
     }
     
     // 新增學生資料
-    create(data: any) {
+    create(data: CreateStudentDto) {
         return this.prisma.student.create({
             data: {
                 studentId: data.studentId,
@@ -78,7 +80,7 @@ export class StudentsService {
     }
     
     // 更新學生資料
-    update(id: number, data: any) {
+    update(id: number, data: UpdateStudentDto) {
         return this.prisma.student.update({
             where: { id },
             data: {
@@ -136,7 +138,7 @@ export class StudentsService {
     }
     
     // 創建學生班級註冊
-    createStudentEnrollment(data: any) {
+    createStudentEnrollment(data: CreateStudentEnrollmentDto) {
         return this.prisma.studentClassEnrollment.create({
             data: {
                 studentId: data.studentId,
@@ -147,7 +149,7 @@ export class StudentsService {
     }
     
     // 更新學生班級註冊
-    updateStudentEnrollment(id: number, data: any) {
+    updateStudentEnrollment(id: number, data: UpdateStudentEnrollmentDto) {
         return this.prisma.studentClassEnrollment.update({
             where: { id },
             data: {

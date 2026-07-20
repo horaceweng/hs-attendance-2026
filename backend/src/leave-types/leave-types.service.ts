@@ -1,6 +1,7 @@
 // in src/leave-types/leave-types.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { CreateLeaveTypeDto, UpdateLeaveTypeDto } from './dto/leave-type.dto';
 
 @Injectable()
 export class LeaveTypesService {
@@ -10,8 +11,8 @@ export class LeaveTypesService {
         // 從資料庫中查詢所有 leaveType 紀錄
         return this.prisma.leaveType.findMany();
     }
-    
-    async create(data: { name: string; description?: string }) {
+
+    async create(data: CreateLeaveTypeDto) {
         return this.prisma.leaveType.create({
             data: {
                 name: data.name,
@@ -20,7 +21,7 @@ export class LeaveTypesService {
         });
     }
     
-    async update(id: number, data: { name?: string; description?: string }) {
+    async update(id: number, data: UpdateLeaveTypeDto) {
         // 檢查記錄是否存在
         const leaveType = await this.prisma.leaveType.findUnique({
             where: { id }

@@ -53,9 +53,9 @@ export class AcademicController {
     }
     
     // 檢查是否要自動升級學生
-    const autoPromoteStudents = data['autoPromoteStudents'] === true;
-    delete data['autoPromoteStudents']; // 從DTO中刪除非標準欄位
-    
+    const autoPromoteStudents = data.autoPromoteStudents === true;
+    delete data.autoPromoteStudents; // service 僅需學年本體欄位
+
     return this.academicService.createAcademicYear(data, autoPromoteStudents);
   }
 
@@ -97,9 +97,9 @@ export class AcademicController {
     }
     
     // 檢查是否要自動升級學生
-    const autoPromoteStudents = data['autoPromoteStudents'] === true;
-    delete data['autoPromoteStudents']; // 從DTO中刪除非標準欄位
-    
+    const autoPromoteStudents = data.autoPromoteStudents === true;
+    delete data.autoPromoteStudents; // service 僅需學年本體欄位
+
     return this.academicService.createAcademicYear(data, autoPromoteStudents);
   }
 

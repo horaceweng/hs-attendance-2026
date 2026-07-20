@@ -27,6 +27,7 @@ async function bootstrap() {
     whitelist: true, // 自動剔除 DTO 未宣告的欄位(暫不啟用 forbidNonWhitelisted,避免既有前端多送欄位時直接 400)
   }));
 
-  await app.listen(3001);
+  // 監聽埠號:優先使用雲端平台(如 Render)動態注入的 PORT 環境變數,本機開發預設 3001
+  await app.listen(process.env.PORT ?? 3001);
 }
 bootstrap();

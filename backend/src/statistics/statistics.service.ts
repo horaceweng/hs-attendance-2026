@@ -1,15 +1,22 @@
 // in src/statistics/statistics.service.ts
-import { Injectable } from '@nestjs/common';
-import { Prisma, AttendanceStatus } from '@prisma/client';
+import { Injectable, Logger } from '@nestjs/common';
+import { Prisma, AttendanceStatus, AcademicYear } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { AcademicService } from '../academic/academic.service';
 import { GetStatisticsReportDto } from './dto/get-statistics.dto';
-import { 
+import {
   GetAttendanceStatsDto,
   AttendanceStatistics,
   ClassAttendanceStatistics,
   StudentAttendanceStatistics,
-  DateAttendanceStatistics 
+  DateAttendanceStatistics
 } from './dto';
+
+// 學年/學期查詢後得到的日期區間
+interface AcademicPeriod {
+  startDate: Date;
+  endDate: Date;
+}
 
 // 回傳的統計資料結構
 export interface StatisticsReportRow {
@@ -35,35 +42,36 @@ export interface StatisticsReportRow {
 
 @Injectable()
 export class StatisticsService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(StatisticsService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private academicService: AcademicService,
+  ) {}
 
   async getStatisticsReport(queryDto: GetStatisticsReportDto): Promise<StatisticsReportRow[]> {
-    // 取得時間範圍（根據學期資訊）
+    // 取得時間範圍（根據學年/學期資訊，對應到 AcademicYear/Season 資料模型）
     let startDate: Date;
     let endDate: Date;
-    
-    // 如果沒有提供學期資訊，使用目前學期
-    if (!queryDto.academicYear || !queryDto.term) {
-      const currentSemester = await this.getCurrentSemester();
-      if (currentSemester) {
-        startDate = currentSemester.startDate;
-        endDate = currentSemester.endDate;
-      } else {
-        // 沒有找到目前學期，使用當前日期的前後一個月
-        startDate = new Date();
-        startDate.setMonth(startDate.getMonth() - 1);
-        endDate = new Date();
-        endDate.setMonth(endDate.getMonth() + 1);
-      }
+
+    // 有指定學年或學期時，優先查詢對應區間；否則以「今天所屬的學年/學期」為準
+    const explicitPeriod = (queryDto.academicYear || queryDto.term)
+      ? await this.resolvePeriodFromParams(queryDto.academicYear, queryDto.term)
+      : null;
+
+    const period = explicitPeriod ?? (await this.getCurrentAcademicPeriod());
+
+    if (period) {
+      startDate = period.startDate;
+      endDate = period.endDate;
     } else {
-      // TODO: 根據提供的學年和學期資訊找出正確的日期範圍
-      // 這部分需要實作 semester 相關功能後再完成
+      // 找不到任何學年/學期資料（例如系統尚未建立），退回目前日期前後一個月，避免直接回傳 500
       startDate = new Date();
       startDate.setMonth(startDate.getMonth() - 1);
       endDate = new Date();
       endDate.setMonth(endDate.getMonth() + 1);
     }
-    
+
     // 找出在範圍內的所有學生
     // 移除 status 條件，因為 StudentWhereInput 目前不支持此屬性
     const studentWhere: Prisma.StudentWhereInput = {
@@ -270,19 +278,105 @@ export class StatisticsService {
     return statisticsReport;
   }
   
-  // 獲取當前學期
-  private async getCurrentSemester() {
-    // 使用 as any 繞過 TypeScript 檢查
-    return (this.prisma as any).semester.findFirst({
-      where: { isActive: true },
+  // 根據查詢參數（學年年度、學期）解析出對應的日期區間
+  // academicYear：學年年度（例如 "2025"）；term：'first'（上學期）或 'second'（下學期）
+  private async resolvePeriodFromParams(
+    academicYearParam?: string,
+    termParam?: string,
+  ): Promise<AcademicPeriod | null> {
+    let academicYear: AcademicYear | null = null;
+
+    if (academicYearParam) {
+      const year = parseInt(academicYearParam, 10);
+      if (!Number.isNaN(year)) {
+        try {
+          const academicYearId = await this.academicService.findAcademicYearByYear(year);
+          academicYear = await this.prisma.academicYear.findUnique({ where: { id: academicYearId } });
+        } catch (error) {
+          // 查無此學年，記錄後回傳 null，讓外層改用 fallback 邏輯
+          this.logger.warn(`找不到學年年度為 ${year} 的資料，改用預設區間：${error.message}`);
+          academicYear = null;
+        }
+      }
+    } else if (termParam) {
+      // 只提供學期、沒有提供學年年度時，以今天所屬的學年為準
+      academicYear = await this.findAcademicYearForDate(new Date());
+    }
+
+    if (!academicYear) return null;
+
+    if (!termParam) {
+      // 只指定學年，使用整個學年的區間
+      return { startDate: academicYear.startDate, endDate: academicYear.endDate };
+    }
+
+    return this.resolveTermPeriod(academicYear, termParam);
+  }
+
+  // 依 AcademicYear 底下的 Season 資料，換算出上/下學期的日期區間
+  // 一個學年若建立 2 筆 Season（上/下學期），前段對應上學期、後段對應下學期；
+  // 若建立 4 筆（四季），則前半（例如秋、冬）視為上學期、後半（例如春、夏）視為下學期
+  private async resolveTermPeriod(academicYear: AcademicYear, termParam: string): Promise<AcademicPeriod> {
+    const seasons = await this.prisma.season.findMany({
+      where: { academicYearId: academicYear.id },
+      orderBy: { startDate: 'asc' },
+    });
+
+    if (seasons.length === 0) {
+      // 該學年尚未建立 Season 資料，退回整學年區間
+      return { startDate: academicYear.startDate, endDate: academicYear.endDate };
+    }
+
+    const half = Math.ceil(seasons.length / 2);
+    const termSeasons = termParam === 'second' ? seasons.slice(half) : seasons.slice(0, half);
+    const targetSeasons = termSeasons.length > 0 ? termSeasons : seasons;
+
+    const startDate = targetSeasons.reduce(
+      (min, s) => (s.startDate < min ? s.startDate : min),
+      targetSeasons[0].startDate,
+    );
+    const endDate = targetSeasons.reduce(
+      (max, s) => (s.endDate > max ? s.endDate : max),
+      targetSeasons[0].endDate,
+    );
+
+    return { startDate, endDate };
+  }
+
+  // 找出「今天」所屬的學年/學期，做為未提供查詢參數時的預設區間
+  private async getCurrentAcademicPeriod(): Promise<AcademicPeriod | null> {
+    const today = new Date();
+
+    // 優先找出今天所屬的 Season（學期）
+    const currentSeason = await this.prisma.season.findFirst({
+      where: { startDate: { lte: today }, endDate: { gte: today } },
+      orderBy: { startDate: 'desc' },
+    });
+
+    if (currentSeason) {
+      return { startDate: currentSeason.startDate, endDate: currentSeason.endDate };
+    }
+
+    // 找不到符合的 Season（例如尚未建立學期資料），退而使用今天所屬的學年區間
+    const currentAcademicYear = await this.findAcademicYearForDate(today);
+    if (currentAcademicYear) {
+      return { startDate: currentAcademicYear.startDate, endDate: currentAcademicYear.endDate };
+    }
+
+    return null;
+  }
+
+  // 找出某個日期所屬的 AcademicYear
+  private async findAcademicYearForDate(date: Date): Promise<AcademicYear | null> {
+    return this.prisma.academicYear.findFirst({
+      where: { startDate: { lte: date }, endDate: { gte: date } },
       orderBy: { startDate: 'desc' },
     });
   }
-  
+
   // 獲取日期範圍內的假日
   private async getHolidaysInRange(startDate: Date, endDate: Date) {
-    // 使用 as any 繞過 TypeScript 檢查
-    return (this.prisma as any).holiday.findMany({
+    return this.prisma.holiday.findMany({
       where: {
         date: { gte: startDate, lte: endDate },
       },
@@ -363,7 +457,14 @@ export class StatisticsService {
     
     // Get all attendance records in the date range
     const attendanceRecords = await this.prisma.attendanceRecord.findMany({ where });
-    
+
+    return this.computeAttendanceStatistics(attendanceRecords);
+  }
+
+  // 依出缺勤紀錄計算統計數字，供單一查詢與分組統計共用
+  private computeAttendanceStatistics(
+    attendanceRecords: { status: AttendanceStatus }[],
+  ): AttendanceStatistics {
     // Count days by status
     const presentDays = attendanceRecords.filter(r => r.status === 'present').length;
     const absentDays = attendanceRecords.filter(r => r.status === 'absent').length;
@@ -371,12 +472,12 @@ export class StatisticsService {
     const leaveEarlyDays = attendanceRecords.filter(r => r.status === 'leave_early').length;
     const onLeaveDays = attendanceRecords.filter(r => r.status === 'on_leave').length;
     const totalDays = attendanceRecords.length;
-    
+
     // Calculate attendance rate
-    const attendanceRate = totalDays > 0 
+    const attendanceRate = totalDays > 0
       ? parseFloat(((presentDays / totalDays) * 100).toFixed(2))
       : 0;
-    
+
     return {
       totalDays,
       presentDays,
@@ -391,37 +492,46 @@ export class StatisticsService {
   async getAttendanceStatisticsByClass(queryDto: GetAttendanceStatsDto): Promise<ClassAttendanceStatistics[]> {
     // Get date range from query or use default range (current month)
     const { startDate, endDate } = await this.getDateRange(queryDto);
-    
+
     // First, get all classes
     const classes = await this.prisma.class.findMany({
       include: { grade: true }
     });
-    
-    // Get attendance stats for each class
-    const result: ClassAttendanceStatistics[] = [];
-    
-    for (const classInfo of classes) {
-      // Build query for this class
-      const classQuery: GetAttendanceStatsDto = {
-        ...queryDto,
-        classId: classInfo.id,
-        startDate,
-        endDate
-      };
-      
-      // Get statistics for this class
-      const stats = await this.getAttendanceStatistics(classQuery);
-      
-      result.push({
+
+    // 一次撈取範圍內所有出缺勤紀錄，再於記憶體中依班級分組，避免逐班查詢造成 N+1
+    const where: any = {
+      attendanceDate: {
+        gte: new Date(startDate),
+        lte: new Date(endDate)
+      }
+    };
+
+    if (queryDto.studentId) {
+      where.studentId = parseInt(queryDto.studentId.toString());
+    }
+
+    const attendanceRecords = await this.prisma.attendanceRecord.findMany({ where });
+
+    // 依班級 ID 分組
+    const recordsByClassId = new Map<number, typeof attendanceRecords>();
+    for (const record of attendanceRecords) {
+      const records = recordsByClassId.get(record.classId) ?? [];
+      records.push(record);
+      recordsByClassId.set(record.classId, records);
+    }
+
+    // 針對每個班級，從分組後的紀錄計算統計數字（不再逐班查詢資料庫）
+    return classes.map(classInfo => {
+      const stats = this.computeAttendanceStatistics(recordsByClassId.get(classInfo.id) ?? []);
+
+      return {
         ...stats,
         classId: classInfo.id,
         className: classInfo.name,
         gradeId: classInfo.gradeId,
         gradeName: classInfo.grade.name
-      });
-    }
-    
-    return result;
+      };
+    });
   }
 
   async getAttendanceStatisticsByStudent(queryDto: GetAttendanceStatsDto): Promise<StudentAttendanceStatistics[]> {

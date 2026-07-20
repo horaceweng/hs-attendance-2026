@@ -1,11 +1,10 @@
-// in src/reports/reports.service.ts --- FINAL LOGIC, ALIGNED WITH ATTENDANCE PAGE
-
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { AcademicService } from 'src/academic/academic.service';
 import { GetAttendanceReportDto } from './dto/get-report.dto';
 import { GetPendingLeavesDto } from './dto/get-pending-leaves.dto';
-import { GetUnresolvedAbsencesDto } from './dto/get-unresolved-absences.dto'; // <-- 請加入這一行
+import { GetUnresolvedAbsencesDto } from './dto/get-unresolved-absences.dto';
 
 
 export interface ReportRow {
@@ -22,7 +21,10 @@ export interface ReportRow {
 
 @Injectable()
 export class ReportsService {
-    constructor(private prisma: PrismaService) {}
+    constructor(
+        private prisma: PrismaService,
+        private academicService: AcademicService,
+    ) {}
 
     async getAttendanceReport(queryDto: GetAttendanceReportDto): Promise<ReportRow[]> {
         const studentWhere: Prisma.StudentWhereInput = {};
@@ -41,6 +43,10 @@ export class ReportsService {
 
         const endDate = queryDto.endDate ? new Date(queryDto.endDate) : new Date();
         endDate.setUTCHours(23, 59, 59, 999);
+
+        // 預先載入所有學年設定，供下方逐日迴圈判斷所屬學年時查找，
+        // 避免每天都對資料庫查詢一次（見 AcademicService.buildAcademicYearLookup）。
+        const academicYears = await this.academicService.buildAcademicYearLookup();
 
         const studentsInScope = await this.prisma.student.findMany({
             where: studentWhere,
@@ -67,12 +73,6 @@ export class ReportsService {
             include: { leaveType: true },
         });
 
-        // DEBUG: log count and sample of attendance records returned by Prisma
-        console.log('[ReportsService] attendanceExceptions.count=', attendanceExceptions.length);
-        if (attendanceExceptions.length > 0) {
-            console.log('[ReportsService] attendanceExceptions.sample=', attendanceExceptions.slice(0,3).map(a => ({ id: a.id, studentId: a.studentId, attendanceDate: a.attendanceDate })));
-        }
-
         // 【核心修正】將報表邏輯改回與每日點名頁一致，pending 和 approved 的假單都視為 on_leave 的基礎
         const leaveExceptions = await this.prisma.leaveRequest.findMany({
             where: {
@@ -85,31 +85,27 @@ export class ReportsService {
             include: { leaveType: true },
         });
 
-        // DEBUG: log count and sample of leave requests returned by Prisma
-        console.log('[ReportsService] leaveExceptions.count=', leaveExceptions.length);
-        if (leaveExceptions.length > 0) {
-            console.log('[ReportsService] leaveExceptions.sample=', leaveExceptions.slice(0,3).map(l => ({ id: l.id, studentId: l.studentId, startDate: l.startDate, endDate: l.endDate, status: l.status })));
-        }
-        
         const fullReport: ReportRow[] = [];
+        const gradeFilterIds = queryDto.grades ? queryDto.grades.map(Number) : [];
         
         for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
             const currentDate = new Date(d);
             const currentDayTime = new Date(currentDate).setUTCHours(0, 0, 0, 0);
-            const reportYear = currentDate.getUTCFullYear();
 
             for (const student of studentsInScope) {
-                // Use the student's most recent enrollment (no year-based filtering).
-                // This avoids excluding students when `schoolYear` encoding differs.
-                let enrollment: any = undefined;
-                if (student.enrollments && student.enrollments.length > 0) {
-                    enrollment = student.enrollments.reduce((a, b) => {
-                        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                        return aTime >= bTime ? a : b;
-                    });
-                }
+                // 依當前日期解析學生對應的班級註冊紀錄（含學年斷檔 fallback，見 AcademicService.resolveEnrollment）
+                const enrollment = await this.academicService.resolveEnrollment(
+                    student,
+                    currentDate,
+                    academicYears,
+                );
+
                 if (!enrollment) continue;
+
+                // 如果有年級篩選，且該日期學生的年級不符合，則跳過
+                if (gradeFilterIds.length > 0 && !gradeFilterIds.includes(enrollment.class.gradeId)) {
+                    continue;
+                }
 
                 let finalStatus = 'present';
                 let leaveTypeName: string | null = null;

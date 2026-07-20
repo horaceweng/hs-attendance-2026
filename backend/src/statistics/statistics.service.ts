@@ -2,7 +2,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma, AttendanceStatus, AcademicYear } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { AcademicService } from '../academic/academic.service';
+import { AcademicService } from 'src/academic/academic.service';
 import { GetStatisticsReportDto } from './dto/get-statistics.dto';
 import {
   GetAttendanceStatsDto,
@@ -138,10 +138,19 @@ export class StatisticsService {
     
     // 計算每個學生的統計數據
     const statisticsReport: StatisticsReportRow[] = [];
-    
+
+    // 預先載入所有學年設定，供下方逐一學生解析註冊紀錄時查找，
+    // 避免每位學生都對資料庫查詢一次（見 AcademicService.buildAcademicYearLookup）。
+    const academicYears = await this.academicService.buildAcademicYearLookup();
+
     for (const student of students) {
-      const currentYear = new Date().getFullYear();
-      const enrollment = student.enrollments.find(e => e.schoolYear === currentYear);
+      // 以報表區間的結束日期解析學生對應的班級註冊紀錄，
+      // 取代原本寫死「目前年份」的邏輯（歷史報表不應該用「現在」的學年去比對）。
+      const enrollment = await this.academicService.resolveEnrollment(
+        student,
+        endDate,
+        academicYears,
+      );
       if (!enrollment) continue;
       
       // 初始化統計數據
@@ -562,10 +571,18 @@ export class StatisticsService {
     
     // Get attendance stats for each student
     const result: StudentAttendanceStatistics[] = [];
-    
+
+    // 預先載入所有學年設定，避免下方逐一學生解析時每次都查詢資料庫。
+    const academicYears = await this.academicService.buildAcademicYearLookup();
+
     for (const student of students) {
-      // Get the current enrollment
-      const enrollment = student.enrollments[0]; // Assuming one active enrollment per student
+      // 以報表區間的結束日期解析學生對應的班級註冊紀錄，
+      // 取代原本「直接取第一筆」的假設（一位學生可能有多筆跨學年的註冊紀錄）。
+      const enrollment = await this.academicService.resolveEnrollment(
+        student,
+        new Date(endDate),
+        academicYears,
+      );
       if (!enrollment) continue;
       
       // Build query for this student

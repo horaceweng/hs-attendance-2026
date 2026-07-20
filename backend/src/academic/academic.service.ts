@@ -1,5 +1,6 @@
 // src/academic/academic.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { AcademicYear } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateAcademicYearDto,
@@ -8,6 +9,20 @@ import {
   UpdateSeasonDto,
   CreateHolidayDto
 } from './dto';
+
+/**
+ * 泛用的「班級註冊紀錄」形狀：只要求呼叫端會用到的欄位，
+ * 讓 reports/statistics 各自不同的 Prisma include 形狀都能直接套用，
+ * 不需要為了共用方法而改變既有查詢的 include 結構。
+ */
+export interface EnrollmentLike {
+  schoolYear: number;
+  createdAt?: Date | string | null;
+}
+
+export interface StudentWithEnrollments<T extends EnrollmentLike = EnrollmentLike> {
+  enrollments: T[];
+}
 
 @Injectable()
 export class AcademicService {
@@ -23,14 +38,99 @@ export class AcademicService {
     const academicYear = await this.prisma.academicYear.findFirst({
       where: { year }
     });
-    
+
     if (!academicYear) {
       throw new NotFoundException(`找不到年度為 ${year} 的學年`);
     }
-    
+
     return academicYear.id;
   }
-  
+
+  /**
+   * 預先載入所有學年設定，供需要「逐日」判斷所屬學年的呼叫端
+   * （例如報表逐日迴圈）重複使用，避免每天都對資料庫查詢一次。
+   *
+   * 用法：在迴圈開始前呼叫一次 `buildAcademicYearLookup()`，
+   * 之後每次呼叫 `getAcademicYearForDate(date, cachedYears)` 時
+   * 傳入這份快取，就只會在記憶體中查找、不會再打 DB。
+   */
+  async buildAcademicYearLookup(): Promise<AcademicYear[]> {
+    return this.prisma.academicYear.findMany({
+      orderBy: { year: 'desc' },
+    });
+  }
+
+  /**
+   * 找出「涵蓋指定日期」的學年設定。
+   *
+   * @param date 要查詢的日期
+   * @param cachedYears 可選，預先用 buildAcademicYearLookup() 載入的學年清單。
+   *                    提供時完全走記憶體查找，不會再查詢資料庫；
+   *                    未提供時才會即時查一次全部學年（適合單次查詢的情境）。
+   * @returns 涵蓋該日期的學年；若學年之間有斷檔（沒有任何學年涵蓋該日期），回傳 null。
+   */
+  async getAcademicYearForDate(
+    date: Date,
+    cachedYears?: AcademicYear[],
+  ): Promise<AcademicYear | null> {
+    const academicYears = cachedYears ?? (await this.buildAcademicYearLookup());
+    const dayTime = new Date(date).setUTCHours(0, 0, 0, 0);
+
+    const activeYear = academicYears.find((y) => {
+      const yStart = new Date(y.startDate).setUTCHours(0, 0, 0, 0);
+      const yEnd = new Date(y.endDate).setUTCHours(23, 59, 59, 999);
+      return dayTime >= yStart && dayTime <= yEnd;
+    });
+
+    return activeYear ?? null;
+  }
+
+  /**
+   * 依「指定日期」解析出學生對應的班級註冊紀錄。
+   *
+   * 邏輯：
+   * 1. 先找出涵蓋該日期的學年（見 getAcademicYearForDate）。
+   * 2. 若找到學年，取該學生 `schoolYear` 等於該學年年度的註冊紀錄。
+   * 3. 【重要 fallback，勿移除】若找不到學年、或該學年下找不到對應的
+   *    註冊紀錄，改用「createdAt 最新」的註冊紀錄作為備案。
+   *    這是刻意保留的行為：歷史資料中 `schoolYear` 的編碼方式並不一致
+   *    （曾有多種編年規則交錯使用），若沒有這層 fallback，
+   *    會導致部份學生在報表/統計中被整批漏掉。
+   * 4. 若學生完全沒有任何註冊紀錄，回傳 null。
+   *
+   * @param student 具備 enrollments 陣列的學生物件（形狀依呼叫端的 include 而定）
+   * @param date 用來判斷所屬學年的日期
+   * @param cachedYears 可選，預先載入的學年清單，避免逐日呼叫時重複查詢 DB
+   */
+  async resolveEnrollment<T extends EnrollmentLike>(
+    student: StudentWithEnrollments<T>,
+    date: Date,
+    cachedYears?: AcademicYear[],
+  ): Promise<T | null> {
+    if (!student.enrollments || student.enrollments.length === 0) {
+      return null;
+    }
+
+    const activeYear = await this.getAcademicYearForDate(date, cachedYears);
+
+    let enrollment: T | undefined;
+    if (activeYear) {
+      enrollment = student.enrollments.find((e) => e.schoolYear === activeYear.year);
+    }
+
+    // Fallback：學年斷檔或找不到對應學年的註冊紀錄時，
+    // 改用 createdAt 最新的一筆（語義同上方註解，勿移除）。
+    if (!enrollment) {
+      enrollment = student.enrollments.reduce((a, b) => {
+        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return aTime >= bTime ? a : b;
+      });
+    }
+
+    return enrollment ?? null;
+  }
+
   async findAllAcademicYears() {
     const results = await this.prisma.$queryRaw`
       SELECT 

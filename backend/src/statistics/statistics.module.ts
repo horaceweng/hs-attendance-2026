@@ -3,7 +3,7 @@ import { Module } from '@nestjs/common';
 import { StatisticsController } from './statistics.controller';
 import { StatisticsService } from './statistics.service';
 import { PrismaModule } from 'src/prisma/prisma.module';
-import { AcademicModule } from '../academic/academic.module';
+import { AcademicModule } from 'src/academic/academic.module';
 
 @Module({
   imports: [PrismaModule, AcademicModule],

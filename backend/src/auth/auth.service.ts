@@ -1,6 +1,7 @@
 // in src/auth/auth.service.ts
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
@@ -16,13 +17,19 @@ export class AuthService {
       where: { name: username },
     });
 
-    // 警告：這裡是明文比對，僅供開發測試！未來會換成 bcrypt 雜湊比對
-    if (user && pass === 'password') { // 假設所有人的密碼都是 'password'
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { ...result } = user; // 在真實應用中可以過濾掉密碼欄位
-      return result;
+    // 尚未設定密碼（passwordHash 為 null）的帳號一律拒絕登入
+    if (!user || !user.passwordHash) {
+      return null;
     }
-    return null;
+
+    const isPasswordValid = await bcrypt.compare(pass, user.passwordHash);
+    if (!isPasswordValid) {
+      return null;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { passwordHash, ...result } = user; // 過濾掉密碼雜湊欄位
+    return result;
   }
 
   // 登入並簽發 JWT
@@ -32,29 +39,56 @@ export class AuthService {
       access_token: this.jwtService.sign(payload),
     };
   }
-  
+
+  // 修改密碼：需先驗證舊密碼正確才能寫入新密碼雜湊
+  async changePassword(
+    userId: number,
+    oldPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user || !user.passwordHash) {
+      throw new UnauthorizedException('尚未設定密碼，無法修改');
+    }
+
+    const isOldPasswordValid = await bcrypt.compare(
+      oldPassword,
+      user.passwordHash,
+    );
+    if (!isOldPasswordValid) {
+      throw new UnauthorizedException('舊密碼錯誤');
+    }
+
+    const newPasswordHash = await bcrypt.hash(newPassword, 10);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: newPasswordHash },
+    });
+  }
+
   // 根據 ID 獲取用戶資料
   async getUserById(id: number) {
     try {
       console.log(`Looking up user with ID: ${id}`);
-      
+
       if (!id || isNaN(id)) {
         throw new Error(`Invalid user ID: ${id}`);
       }
-      
+
       const user = await this.prisma.user.findUnique({
         where: { id },
       });
-      
+
       if (!user) {
         throw new Error(`User with ID ${id} not found`);
       }
-      
+
       console.log(`Successfully found user: ${user.name}, role: ${user.role}`);
-      
+
       // 不回傳敏感資訊
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { ...result } = user;
+      const { passwordHash, ...result } = user;
       return result;
     } catch (error) {
       console.error(`Error in getUserById(${id}):`, error.message);

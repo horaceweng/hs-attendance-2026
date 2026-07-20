@@ -1,9 +1,8 @@
 name: DB Migrate & Seed
 
+# 僅手動觸發:此 workflow 會對生產資料庫執行 migrate 與 seed
 on:
   workflow_dispatch:
-  push:
-    branches: [ main ]
 
 jobs:
   migrate-seed:

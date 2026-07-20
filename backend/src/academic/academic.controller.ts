@@ -27,7 +27,7 @@ import {
 } from './dto';
 
 @Controller()
-@UseGuards(AuthGuard('jwt')) // 暫時移除 RolesGuard 以測試基本身份驗證
+@UseGuards(AuthGuard('jwt'), RolesGuard)
 export class AcademicController {
   constructor(private readonly academicService: AcademicService) {}
 
@@ -43,8 +43,7 @@ export class AcademicController {
   }
 
   @Post('academic/years')
-  // 暫時移除角色限制
-  // @Roles(Role.GA_specialist)
+  @Roles(Role.GA_specialist)
   createAcademicYear(@Body() data: CreateAcademicYearDto) {
     // Ensure isActive is a boolean
     if (data.isActive === undefined) {
@@ -88,8 +87,7 @@ export class AcademicController {
   }
 
   @Post('academic-years')
-  // 暫時移除角色限制
-  // @Roles(Role.GA_specialist)
+  @Roles(Role.GA_specialist)
   legacyCreateAcademicYear(@Body() data: CreateAcademicYearDto) {
     // Ensure isActive is a boolean
     if (data.isActive === undefined) {

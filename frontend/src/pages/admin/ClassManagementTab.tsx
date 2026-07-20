@@ -1,5 +1,5 @@
 // src/pages/admin/ClassManagementTab.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Button,
@@ -22,9 +22,17 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import * as api from '../../services/api';
+import { useCrudResource } from '../../hooks/useCrudResource';
+import CrudTable from '../../components/admin/CrudTable';
+import CrudDialog from '../../components/admin/CrudDialog';
 
 interface ClassData {
   id: number;
+  name: string;
+  description: string;
+}
+
+interface ClassFormData {
   name: string;
   description: string;
 }
@@ -48,27 +56,69 @@ interface TeacherAssignment {
   };
 }
 
+const emptyFormData: ClassFormData = {
+  name: '',
+  description: ''
+};
+
 const ClassManagementTab: React.FC = () => {
-  const [classes, setClasses] = useState<ClassData[]>([]);
+  // 用於存儲每個班級的當前導師（班級列表以外的附加資料，隨班級列表一起刷新）
+  const [classTeachersMap, setClassTeachersMap] = useState<Record<number, TeacherAssignment[]>>({});
+
+  // 取得班級列表的同時，一併取得每個班級的導師分配資料，
+  // 讓 useCrudResource 的 fetchAll（新增/編輯/刪除後都會重新呼叫）維持原本行為。
+  const fetchClassesWithTeachers = useCallback(async () => {
+    const response = await api.getClasses();
+    const classesList: ClassData[] = response.data;
+
+    const teachersMap: Record<number, TeacherAssignment[]> = {};
+    for (const classItem of classesList) {
+      try {
+        const teachersResponse = await api.getClassTeachers(classItem.id);
+        teachersMap[classItem.id] = teachersResponse.data;
+      } catch (err) {
+        console.error(`獲取班級 ${classItem.id} 的導師資料失敗`, err);
+      }
+    }
+    setClassTeachersMap(teachersMap);
+
+    return response;
+  }, []);
+
+  const {
+    data: classes,
+    loading,
+    error,
+    setError,
+    dialogOpen,
+    currentItem: currentClass,
+    formData,
+    setFormData,
+    openCreate,
+    openEdit,
+    closeDialog,
+    submit,
+    remove,
+  } = useCrudResource<ClassData, ClassFormData>({
+    fetchFn: fetchClassesWithTeachers,
+    createFn: api.createClass,
+    updateFn: api.updateClass,
+    deleteFn: api.deleteClass,
+    getId: (item) => item.id,
+    emptyFormData,
+    toFormData: (item) => ({ name: item.name, description: item.description }),
+    fetchErrorMessage: '獲取班級資料失敗',
+    submitErrorMessage: '提交失敗',
+    deleteErrorMessage: '刪除失敗',
+    deleteConfirmMessage: '確定要刪除此班級嗎?',
+  });
+
+  // --- 指派導師：業務邏輯較獨特（需另外維護老師清單、現有分配、指派表單），保留原本作法 ---
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [classTeachers, setClassTeachers] = useState<TeacherAssignment[]>([]);
-  // 用於存儲每個班級的當前導師
-  const [classTeachersMap, setClassTeachersMap] = useState<Record<number, TeacherAssignment[]>>({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  
-  // 對話框狀態
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [teacherDialogOpen, setTeacherDialogOpen] = useState(false);
-  const [currentClass, setCurrentClass] = useState<ClassData | null>(null);
-  
-  // 表單狀態
-  const [formData, setFormData] = useState({
-    name: '',
-    description: ''
-  });
-  
-  // 導師表單狀態
+  const [classForAssignment, setClassForAssignment] = useState<ClassData | null>(null);
+
   const [teacherFormData, setTeacherFormData] = useState({
     teacherId: '',
     schoolYear: new Date().getFullYear().toString(),
@@ -78,37 +128,6 @@ const ClassManagementTab: React.FC = () => {
     notes: ''
   });
 
-  // 從API獲取資料
-  const fetchClasses = async () => {
-    setLoading(true);
-    try {
-      const response = await api.getClasses();
-      const classesList = response.data;
-      setClasses(classesList);
-      
-      // 獲取每個班級的當前導師
-      const teachersMap: Record<number, TeacherAssignment[]> = {};
-      
-      // 這裡可能需要優化，以避免大量API請求
-      for (const classItem of classesList) {
-        try {
-          const teachersResponse = await api.getClassTeachers(classItem.id);
-          teachersMap[classItem.id] = teachersResponse.data;
-        } catch (err) {
-          console.error(`獲取班級 ${classItem.id} 的導師資料失敗`, err);
-        }
-      }
-      
-      setClassTeachersMap(teachersMap);
-      setError(null);
-    } catch (err) {
-      setError("獲取班級資料失敗");
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
   // 獲取老師列表
   const fetchTeachers = async () => {
     try {
@@ -118,11 +137,8 @@ const ClassManagementTab: React.FC = () => {
       console.error("獲取老師資料失敗", err);
     }
   };
-  
-  // 不再需要單獨的 fetchClassTeachers 函數
 
   useEffect(() => {
-    fetchClasses();
     fetchTeachers();
   }, []);
 
@@ -133,7 +149,7 @@ const ClassManagementTab: React.FC = () => {
       [name]: value
     });
   };
-  
+
   const handleTeacherFormChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>) => {
     const name = e.target.name as string;
     const value = e.target.value;
@@ -142,16 +158,16 @@ const ClassManagementTab: React.FC = () => {
       [name]: name === 'isActive' ? (value === 'true') : value
     });
   };
-  
+
   const handleTeacherSubmit = async () => {
-    if (!currentClass) {
+    if (!classForAssignment) {
       setError("無班級被選擇");
       return;
     }
-    
+
     try {
       const data = {
-        classId: currentClass.id,
+        classId: classForAssignment.id,
         teacherId: Number(teacherFormData.teacherId),
         schoolYear: teacherFormData.schoolYear,
         startDate: teacherFormData.startDate || null,
@@ -159,21 +175,21 @@ const ClassManagementTab: React.FC = () => {
         isActive: teacherFormData.isActive,
         notes: teacherFormData.notes || null
       };
-      
+
       await api.assignTeacherToClass(data);
-      
+
       // 重新獲取班級導師資料
-      const response = await api.getClassTeachers(currentClass.id);
+      const response = await api.getClassTeachers(classForAssignment.id);
       setClassTeachers(response.data);
-      
+
       // 更新 classTeachersMap
       setClassTeachersMap(prev => ({
         ...prev,
-        [currentClass.id]: response.data
+        [classForAssignment.id]: response.data
       }));
-      
+
       setError(null);
-      
+
       // 清空表單
       setTeacherFormData({
         teacherId: '',
@@ -183,7 +199,7 @@ const ClassManagementTab: React.FC = () => {
         isActive: true,
         notes: ''
       });
-      
+
       // 關閉對話框
       setTeacherDialogOpen(false);
     } catch (err) {
@@ -192,26 +208,8 @@ const ClassManagementTab: React.FC = () => {
     }
   };
 
-  const openAddDialog = () => {
-    setCurrentClass(null);
-    setFormData({
-      name: '',
-      description: ''
-    });
-    setDialogOpen(true);
-  };
-  
-  const openEditDialog = (classData: ClassData) => {
-    setCurrentClass(classData);
-    setFormData({
-      name: classData.name,
-      description: classData.description
-    });
-    setDialogOpen(true);
-  };
-  
   const openAssignTeacherDialog = async (classData: ClassData) => {
-    setCurrentClass(classData);
+    setClassForAssignment(classData);
     setTeacherFormData({
       teacherId: '',
       schoolYear: new Date().getFullYear().toString(),
@@ -220,12 +218,12 @@ const ClassManagementTab: React.FC = () => {
       isActive: true,
       notes: ''
     });
-    
+
     // 獲取該班級的現有導師
     try {
       const response = await api.getClassTeachers(classData.id);
       setClassTeachers(response.data);
-      
+
       // 更新 classTeachersMap
       setClassTeachersMap(prev => ({
         ...prev,
@@ -235,42 +233,8 @@ const ClassManagementTab: React.FC = () => {
       console.error(`獲取班級 ${classData.id} 的導師資料失敗`, err);
       setError(`獲取班級 ${classData.id} 的導師資料失敗`);
     }
-    
-    setTeacherDialogOpen(true);
-  };
 
-  const handleSubmit = async () => {
-    try {
-      if (currentClass) {
-        // 編輯班級
-        await api.updateClass(currentClass.id, formData);
-      } else {
-        // 新增班級
-        await api.createClass(formData);
-      }
-      
-      setDialogOpen(false);
-      fetchClasses(); // 重新獲取數據
-      setError(null);
-    } catch (err) {
-      setError("提交失敗");
-      console.error(err);
-    }
-  };
-  
-  const handleDelete = async (id: number) => {
-    if (!window.confirm("確定要刪除此班級嗎?")) {
-      return;
-    }
-    
-    try {
-      await api.deleteClass(id);
-      fetchClasses(); // 重新獲取數據
-      setError(null);
-    } catch (err) {
-      setError("刪除失敗");
-      console.error(err);
-    }
+    setTeacherDialogOpen(true);
   };
 
   return (
@@ -278,7 +242,7 @@ const ClassManagementTab: React.FC = () => {
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 3 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="h5">班級管理</Typography>
-          <Button variant="contained" onClick={openAddDialog}>
+          <Button variant="contained" onClick={openCreate}>
             新增班級
           </Button>
         </Box>
@@ -286,101 +250,81 @@ const ClassManagementTab: React.FC = () => {
           在此頁面管理班級並指派導師。點擊「指派導師」按鈕可以為班級分配老師，或查看現有導師分配。
         </Typography>
       </Box>
-      
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-      
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>班級名稱</TableCell>
-              <TableCell>描述</TableCell>
-              <TableCell>現任導師</TableCell>
-              <TableCell align="right">操作</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={3} align="center">載入中...</TableCell>
-              </TableRow>
-            ) : classes.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={3} align="center">尚無班級資料</TableCell>
-              </TableRow>
-            ) : (
-              classes.map((classItem) => (
-                <TableRow key={classItem.id}>
-                  <TableCell>{classItem.name}</TableCell>
-                  <TableCell>{classItem.description}</TableCell>
-                  <TableCell>
-                    {classTeachersMap[classItem.id]?.some(teacher => teacher.isActive) ? 
-                      classTeachersMap[classItem.id]
-                        .filter(teacher => teacher.isActive)
-                        .map(teacher => teacher.teacher.name).join(", ") : 
-                      <Typography color="text.secondary">未指派</Typography>
-                    }
-                  </TableCell>
-                  <TableCell align="right">
-                    <IconButton size="small" onClick={() => openEditDialog(classItem)}>
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton size="small" onClick={() => handleDelete(classItem.id)}>
-                      <DeleteIcon />
-                    </IconButton>
-                    <Button 
-                      size="small" 
-                      onClick={() => openAssignTeacherDialog(classItem)}
-                      sx={{ ml: 1 }}
-                    >
-                      指派導師
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
-      
-      {/* 新增/編輯班級對話框 */}
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{currentClass ? '編輯班級' : '新增班級'}</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-            <TextField
-              id="class-name"
-              fullWidth
-              label="班級名稱"
-              name="name"
-              value={formData.name}
-              onChange={handleFormChange}
-              required
-            />
-            <TextField
-              id="class-description"
-              fullWidth
-              label="描述"
-              name="description"
-              value={formData.description}
-              onChange={handleFormChange}
-              multiline
-              rows={3}
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDialogOpen(false)}>取消</Button>
-          <Button onClick={handleSubmit} variant="contained" disabled={!formData.name.trim()}>
-            提交
-          </Button>
-        </DialogActions>
-      </Dialog>
 
-      {/* 指派導師對話框 */}
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+      <CrudTable<ClassData>
+        columns={[
+          { header: '班級名稱', render: (classItem) => classItem.name },
+          { header: '描述', render: (classItem) => classItem.description },
+          {
+            header: '現任導師',
+            render: (classItem) =>
+              classTeachersMap[classItem.id]?.some(teacher => teacher.isActive) ?
+                classTeachersMap[classItem.id]
+                  .filter(teacher => teacher.isActive)
+                  .map(teacher => teacher.teacher.name).join(", ") :
+                <Typography color="text.secondary">未指派</Typography>
+          },
+        ]}
+        data={classes}
+        loading={loading}
+        getRowKey={(classItem) => classItem.id}
+        emptyMessage="尚無班級資料"
+        renderActions={(classItem) => (
+          <>
+            <IconButton size="small" onClick={() => openEdit(classItem)}>
+              <EditIcon />
+            </IconButton>
+            <IconButton size="small" onClick={() => remove(classItem)}>
+              <DeleteIcon />
+            </IconButton>
+            <Button
+              size="small"
+              onClick={() => openAssignTeacherDialog(classItem)}
+              sx={{ ml: 1 }}
+            >
+              指派導師
+            </Button>
+          </>
+        )}
+      />
+
+      {/* 新增/編輯班級對話框 */}
+      <CrudDialog
+        open={dialogOpen}
+        title={currentClass ? '編輯班級' : '新增班級'}
+        onClose={closeDialog}
+        onSubmit={submit}
+        submitDisabled={!formData.name.trim()}
+      >
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+          <TextField
+            id="class-name"
+            fullWidth
+            label="班級名稱"
+            name="name"
+            value={formData.name}
+            onChange={handleFormChange}
+            required
+          />
+          <TextField
+            id="class-description"
+            fullWidth
+            label="描述"
+            name="description"
+            value={formData.description}
+            onChange={handleFormChange}
+            multiline
+            rows={3}
+          />
+        </Box>
+      </CrudDialog>
+
+      {/* 指派導師對話框：業務邏輯特殊（現有分配列表 + 指派表單），維持原本自訂實作 */}
       <Dialog open={teacherDialogOpen} onClose={() => setTeacherDialogOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>
-          {currentClass ? `班級「${currentClass.name}」的導師分配` : '導師分配'}
+          {classForAssignment ? `班級「${classForAssignment.name}」的導師分配` : '導師分配'}
         </DialogTitle>
         <DialogContent>
           <Box sx={{ mt: 2, mb: 3 }}>
@@ -411,8 +355,8 @@ const ClassManagementTab: React.FC = () => {
                           {assignment.endDate ? new Date(assignment.endDate).toLocaleDateString() : '—'}
                         </TableCell>
                         <TableCell>
-                          {assignment.isActive ? 
-                            <Typography color="success.main">生效中</Typography> : 
+                          {assignment.isActive ?
+                            <Typography color="success.main">生效中</Typography> :
                             <Typography color="text.secondary">已結束</Typography>}
                         </TableCell>
                       </TableRow>
@@ -422,7 +366,7 @@ const ClassManagementTab: React.FC = () => {
               </TableContainer>
             )}
           </Box>
-          
+
           <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>新增導師分配</Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <TextField
@@ -445,7 +389,7 @@ const ClassManagementTab: React.FC = () => {
                 <option value="" disabled>沒有可用的導師</option>
               )}
             </TextField>
-            
+
             <TextField
               id="school-year"
               fullWidth
@@ -455,7 +399,7 @@ const ClassManagementTab: React.FC = () => {
               onChange={handleTeacherFormChange}
               required
             />
-            
+
             <TextField
               id="start-date"
               fullWidth
@@ -467,7 +411,7 @@ const ClassManagementTab: React.FC = () => {
               onChange={handleTeacherFormChange}
               required
             />
-            
+
             <TextField
               id="end-date"
               fullWidth
@@ -479,7 +423,7 @@ const ClassManagementTab: React.FC = () => {
               onChange={handleTeacherFormChange}
               helperText="如果未指定，則視為無限期"
             />
-            
+
             <TextField
               id="notes"
               fullWidth

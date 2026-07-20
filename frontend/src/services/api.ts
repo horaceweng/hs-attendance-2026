@@ -56,12 +56,21 @@ apiClient.interceptors.response.use(
 const buildQueryParams = (params: any) => {
   const queryParams = new URLSearchParams();
   for (const key in params) {
-    if (params[key]) {
-      if (Array.isArray(params[key]) && params[key].length > 0) {
-        queryParams.append(key, params[key].join(','));
-      } else if (!Array.isArray(params[key])) {
-        queryParams.append(key, params[key]);
+    const value = params[key];
+
+    // 排除 undefined/null(表示未提供該參數),以及空字串
+    // (呼叫端語義中，空字串代表使用者「未選擇」該篩選條件，故沿用排除)。
+    // 注意：0 與 false 是有效的參數值，不可視為 falsy 而丟棄。
+    if (value === undefined || value === null || value === '') {
+      continue;
+    }
+
+    if (Array.isArray(value)) {
+      if (value.length > 0) {
+        queryParams.append(key, value.join(','));
       }
+    } else {
+      queryParams.append(key, String(value));
     }
   }
   return queryParams.toString();

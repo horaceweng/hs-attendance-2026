@@ -16,6 +16,7 @@ export class RolesGuard implements CanActivate {
       return true;
     }
     const { user } = context.switchToHttp().getRequest();
-    return requiredRoles.some((role) => user.role?.includes(role));
+    // 使用完全相等比對角色，避免子字串比對造成的誤判（例如 'teacher' 誤符合其他角色名稱片段）
+    return requiredRoles.some((role) => user.role === role);
   }
 }

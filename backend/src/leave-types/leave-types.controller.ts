@@ -2,8 +2,11 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { LeaveTypesService } from './leave-types.service';
 import { AuthGuard } from '@nestjs/passport';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { Role } from '@prisma/client';
 
-@UseGuards(AuthGuard('jwt')) // 保護此路由，需要登入才能存取
+@UseGuards(AuthGuard('jwt'), RolesGuard) // 保護此路由，需要登入才能存取；寫入端點另限管理員角色
 @Controller('leave-types')  // 設定此 Controller 的基礎路徑為 /leave-types
 export class LeaveTypesController {
   constructor(private readonly leaveTypesService: LeaveTypesService) {}
@@ -12,18 +15,21 @@ export class LeaveTypesController {
   findAll() {
     return this.leaveTypesService.findAll();
   }
-  
+
   @Post()
+  @Roles(Role.GA_specialist)
   create(@Body() data: { name: string; description?: string }) {
     return this.leaveTypesService.create(data);
   }
-  
+
   @Put(':id')
+  @Roles(Role.GA_specialist)
   update(@Param('id') id: string, @Body() data: { name?: string; description?: string }) {
     return this.leaveTypesService.update(+id, data);
   }
-  
+
   @Delete(':id')
+  @Roles(Role.GA_specialist)
   remove(@Param('id') id: string) {
     return this.leaveTypesService.remove(+id);
   }

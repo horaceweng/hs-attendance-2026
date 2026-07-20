@@ -97,6 +97,9 @@ model User {
   name        String  @db.VarChar(255)
   role        Role
 
+  // 密碼雜湊（bcrypt）；既有資料尚未設定密碼時為 null，登入應一律拒絕
+  passwordHash String? @map("password_hash") @db.VarChar(255)
+
   // 一個老師可能有多個班級任期
   classAssignments          TeacherClassAssignment[]
   

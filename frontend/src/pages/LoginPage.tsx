@@ -6,7 +6,7 @@ import * as api from '../services/api';
 
 export const LoginPage: React.FC = () => {
     const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('password'); // 開發方便，預設密碼
+    const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();

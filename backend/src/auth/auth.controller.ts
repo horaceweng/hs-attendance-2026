@@ -1,7 +1,16 @@
 // in src/auth/auth.controller.ts
-import { Controller, Post, UseGuards, Request, Get } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Patch,
+  UseGuards,
+  Request,
+  Get,
+  Body,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -25,7 +34,7 @@ export class AuthController {
     // req.user 中包含 JwtStrategy validate 回傳的 payload
     return req.user;
   }
-  
+
   // GET /auth/me
   // 這個 API 用來獲取當前用戶的完整信息
   @UseGuards(AuthGuard('jwt'))
@@ -33,31 +42,44 @@ export class AuthController {
   async getCurrentUser(@Request() req) {
     try {
       console.log('Auth /me request received, user payload:', req.user);
-      
+
       if (!req.user || !req.user.userId) {
         console.error('Auth /me error: Missing user ID in request');
-        return { 
+        return {
           error: 'Missing user ID in request',
-          payload: req.user 
+          payload: req.user,
         };
       }
-      
+
       const user = await this.authService.getUserById(req.user.userId);
       console.log(`Auth /me success: Found user with ID ${req.user.userId}`);
-      
+
       return {
         ...user,
         role: req.user.role, // 確保角色信息也包含在內
       };
     } catch (error) {
       console.error('Auth /me error:', error.message, error.stack);
-      
+
       // 返回更有用的錯誤信息，而不是通用的 500 錯誤
-      return { 
+      return {
         error: error.message,
         userId: req.user?.userId,
-        role: req.user?.role 
+        role: req.user?.role,
       };
     }
+  }
+
+  // PATCH /auth/password
+  // 讓已登入使用者自行修改密碼，需先驗證舊密碼
+  @UseGuards(AuthGuard('jwt'))
+  @Patch('password')
+  async changePassword(@Request() req, @Body() dto: ChangePasswordDto) {
+    await this.authService.changePassword(
+      req.user.userId,
+      dto.oldPassword,
+      dto.newPassword,
+    );
+    return { message: '密碼已更新' };
   }
 }

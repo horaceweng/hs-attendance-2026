@@ -1,11 +1,19 @@
 // in backend/prisma/seed.ts --- FINAL TYPE-SAFE VERSION
 
 import { PrismaClient, Role, Gender } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
 async function main() {
   console.log(`Start seeding ...`);
+
+  // 種子帳號的初始密碼需透過環境變數提供，避免將明文密碼寫死在程式碼中
+  const defaultUserPassword = process.env.DEFAULT_USER_PASSWORD;
+  if (!defaultUserPassword) {
+    throw new Error('缺少 DEFAULT_USER_PASSWORD 環境變數，無法產生種子使用者密碼');
+  }
+  const defaultPasswordHash = await bcrypt.hash(defaultUserPassword, 10);
 
   // --- 使用 upsert 安全地建立基礎資料 ---
   console.log('Upserting leave types...');
@@ -58,12 +66,12 @@ async function main() {
   console.log('Creating users...');
   await prisma.user.createMany({
     data: [
-      { name: '林龍伸', role: Role.teacher },
-      { name: '紀輔則', role: Role.teacher }, 
-      { name: '王新', role: Role.teacher },
-      { name: '王慧宜', role: Role.teacher }, 
-      { name: '怡茜', role: Role.GA_specialist },
-      { name: '安妮', role: Role.GA_specialist },
+      { name: '林龍伸', role: Role.teacher, passwordHash: defaultPasswordHash },
+      { name: '紀輔則', role: Role.teacher, passwordHash: defaultPasswordHash },
+      { name: '王新', role: Role.teacher, passwordHash: defaultPasswordHash },
+      { name: '王慧宜', role: Role.teacher, passwordHash: defaultPasswordHash },
+      { name: '怡茜', role: Role.GA_specialist, passwordHash: defaultPasswordHash },
+      { name: '安妮', role: Role.GA_specialist, passwordHash: defaultPasswordHash },
     ]
   });
   

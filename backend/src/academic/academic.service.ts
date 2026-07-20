@@ -773,7 +773,11 @@ export class AcademicService {
       
       return this.findOneAcademicYear(id);
     } catch (error) {
-      throw new NotFoundException(`Academic year with ID ${id} not found`);
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      console.error(`更新學年 ID=${id} 失敗:`, error);
+      throw error;
     }
   }
 
@@ -782,14 +786,18 @@ export class AcademicService {
       const result = await this.prisma.$executeRaw`
         DELETE FROM academic_years WHERE id = ${id}
       `;
-      
+
       if (result === 0) {
         throw new NotFoundException(`Academic year with ID ${id} not found`);
       }
-      
+
       return { id };
     } catch (error) {
-      throw new NotFoundException(`Academic year with ID ${id} not found`);
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      console.error(`刪除學年 ID=${id} 失敗:`, error);
+      throw error;
     }
   }
 
@@ -936,7 +944,11 @@ export class AcademicService {
       
       return { id };
     } catch (error) {
-      throw new NotFoundException(`Season with ID ${id} not found`);
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      console.error(`刪除季節 ID=${id} 失敗:`, error);
+      throw error;
     }
   }
 
@@ -1035,7 +1047,11 @@ export class AcademicService {
       
       return { id };
     } catch (error) {
-      throw new NotFoundException(`Holiday with ID ${id} not found`);
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      console.error(`刪除假日 ID=${id} 失敗:`, error);
+      throw error;
     }
   }
 }

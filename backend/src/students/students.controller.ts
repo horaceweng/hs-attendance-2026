@@ -17,6 +17,8 @@ import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { Role } from '@prisma/client';
+import { CreateStudentDto, UpdateStudentDto } from './dto/student.dto';
+import { CreateStudentEnrollmentDto, UpdateStudentEnrollmentDto } from './dto/student-enrollment.dto';
 
 @Controller('students')
 export class StudentsController {
@@ -49,14 +51,14 @@ export class StudentsController {
     @UseGuards(AuthGuard('jwt'), RolesGuard)
     @Post()
     @Roles(Role.GA_specialist)
-    create(@Body() data: any) {
+    create(@Body() data: CreateStudentDto) {
         return this.studentsService.create(data);
     }
-    
+
     @UseGuards(AuthGuard('jwt'), RolesGuard)
     @Put(':id')
     @Roles(Role.GA_specialist)
-    update(@Param('id', ParseIntPipe) id: number, @Body() data: any) {
+    update(@Param('id', ParseIntPipe) id: number, @Body() data: UpdateStudentDto) {
         return this.studentsService.update(id, data);
     }
     
@@ -78,16 +80,16 @@ export class StudentsController {
     @UseGuards(AuthGuard('jwt'), RolesGuard)
     @Post('/enrollments')
     @Roles(Role.GA_specialist)
-    createStudentEnrollment(@Body() data: any) {
+    createStudentEnrollment(@Body() data: CreateStudentEnrollmentDto) {
         return this.studentsService.createStudentEnrollment(data);
     }
-    
+
     @UseGuards(AuthGuard('jwt'), RolesGuard)
     @Put('/enrollments/:id')
     @Roles(Role.GA_specialist)
     updateStudentEnrollment(
         @Param('id', ParseIntPipe) id: number,
-        @Body() data: any
+        @Body() data: UpdateStudentEnrollmentDto
     ) {
         return this.studentsService.updateStudentEnrollment(id, data);
     }

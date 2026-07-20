@@ -4,6 +4,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { Role } from '@prisma/client';
+import { CreateUserDto } from './dto/create-user.dto';
 
 // 使用者管理僅限管理員（GA_specialist）存取，避免一般教師建立/刪除帳號造成提權
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -25,7 +26,7 @@ export class UsersController {
 
     @Post('teacher')
     @Roles(Role.GA_specialist)
-    async createTeacher(@Body() data: { name: string }) {
+    async createTeacher(@Body() data: CreateUserDto) {
         try {
             return await this.usersService.createUser({
                 name: data.name,
@@ -41,7 +42,7 @@ export class UsersController {
     
     @Post('ga-specialist')
     @Roles(Role.GA_specialist)
-    async createGASpecialist(@Body() data: { name: string }) {
+    async createGASpecialist(@Body() data: CreateUserDto) {
         try {
             return await this.usersService.createUser({
                 name: data.name,

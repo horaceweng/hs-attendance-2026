@@ -34,5 +34,5 @@ export class AttendanceStatisticsResponseDto {
   
   @IsOptional()
   @IsArray()
-  details?: any[];
+  details?: unknown[];
 }

@@ -1,4 +1,28 @@
 import axios from 'axios';
+import type {
+  CreateLeaveRequestPayload,
+  SubmitAttendancePayload,
+  AttendanceReportParams,
+  PendingLeavesReportParams,
+  UnresolvedAbsencesReportParams,
+  StatisticsReportParams,
+  CreateClassPayload,
+  UpdateClassPayload,
+  AssignTeacherPayload,
+  CreateLeaveTypePayload,
+  UpdateLeaveTypePayload,
+  CreateUserPayload,
+  CreateAcademicYearPayload,
+  UpdateAcademicYearPayload,
+  CreateSeasonPayload,
+  UpdateSeasonPayload,
+  CreateHolidayPayload,
+  GetStudentsParams,
+  CreateStudentPayload,
+  UpdateStudentPayload,
+  CreateStudentEnrollmentPayload,
+  UpdateStudentEnrollmentPayload,
+} from '../types/api-requests';
 
 // Allow overriding the API base URL via Vite env var when building/deploying.
 // In development this falls back to http://localhost:3001
@@ -51,7 +75,7 @@ apiClient.interceptors.response.use(
 );
 
 // 統一處理查詢參數的輔助函式
-const buildQueryParams = (params: any) => {
+const buildQueryParams = <T extends object>(params: T) => {
   const queryParams = new URLSearchParams();
   for (const key in params) {
     const value = params[key];
@@ -79,29 +103,29 @@ export const login = (username: string, password: string) => apiClient.post('/au
 export const getCurrentUser = () => apiClient.get('/auth/me');
 export const getClasses = () => apiClient.get('/classes');
 export const getStudentsByClass = (classId: number) => apiClient.get(`/students/class/${classId}`);
-export const createLeaveRequest = (data: any) => apiClient.post('/leaves', data);
+export const createLeaveRequest = (data: CreateLeaveRequestPayload) => apiClient.post('/leaves', data);
 export const getLeaveTypes = () => apiClient.get('/leave-types');
 
 // --- 每日出缺勤登記用的 API 函式 ---
 export const getAttendanceForClass = (classId: number, date: string) => {
     return apiClient.get(`/attendance/class/${classId}`, { params: { date } });
 };
-export const submitAttendance = (classId: number, data: any) => {
+export const submitAttendance = (classId: number, data: SubmitAttendancePayload) => {
     return apiClient.post(`/attendance/class/${classId}`, data);
 };
 
 // --- 報表 API ---
-export const getAttendanceReport = (params: any) => {
+export const getAttendanceReport = (params: AttendanceReportParams) => {
     const queryString = buildQueryParams(params);
     return apiClient.get(`/reports/attendance?${queryString}`);
 };
 
-export const getPendingLeavesReport = (params: any) => {
+export const getPendingLeavesReport = (params: PendingLeavesReportParams) => {
     const queryString = buildQueryParams(params);
     return apiClient.get(`/reports/pending-leaves?${queryString}`);
 };
 
-export const getUnresolvedAbsencesReport = (params: any) => {
+export const getUnresolvedAbsencesReport = (params: UnresolvedAbsencesReportParams) => {
     const queryString = buildQueryParams(params);
     return apiClient.get(`/reports/unresolved-absences?${queryString}`);
 };
@@ -115,41 +139,41 @@ export const rejectLeaveRequest = (leaveId: number, reason?: string) => {
 };
 
 // --- 統計報表 API ---
-export const getStatisticsReport = (params: any) => {
+export const getStatisticsReport = (params: StatisticsReportParams) => {
     const queryString = buildQueryParams(params);
     return apiClient.get(`/statistics/report?${queryString}`);
 };
 
 // --- 管理 API ---
 // 班級管理
-export const createClass = (data: any) => apiClient.post('/classes', data);
-export const updateClass = (id: number, data: any) => apiClient.put(`/classes/${id}`, data);
+export const createClass = (data: CreateClassPayload) => apiClient.post('/classes', data);
+export const updateClass = (id: number, data: UpdateClassPayload) => apiClient.put(`/classes/${id}`, data);
 export const deleteClass = (id: number) => apiClient.delete(`/classes/${id}`);
 export const getTeachers = () => apiClient.get('/users/teachers');
 export const getGASpecialists = () => apiClient.get('/users/ga-specialists');
-export const createTeacher = (data: { name: string }) => apiClient.post('/users/teacher', data);
-export const createGASpecialist = (data: { name: string }) => apiClient.post('/users/ga-specialist', data);
+export const createTeacher = (data: CreateUserPayload) => apiClient.post('/users/teacher', data);
+export const createGASpecialist = (data: CreateUserPayload) => apiClient.post('/users/ga-specialist', data);
 export const deleteUser = (id: number) => apiClient.delete(`/users/${id}`);
-export const assignTeacherToClass = (data: any) => apiClient.post('/classes/assign-teacher', data);
+export const assignTeacherToClass = (data: AssignTeacherPayload) => apiClient.post('/classes/assign-teacher', data);
 export const getClassTeachers = (classId: number) => apiClient.get(`/classes/${classId}/teachers`);
 
 // 假別管理
-export const createLeaveType = (data: any) => apiClient.post('/leave-types', data);
-export const updateLeaveType = (id: number, data: any) => apiClient.put(`/leave-types/${id}`, data);
+export const createLeaveType = (data: CreateLeaveTypePayload) => apiClient.post('/leave-types', data);
+export const updateLeaveType = (id: number, data: UpdateLeaveTypePayload) => apiClient.put(`/leave-types/${id}`, data);
 export const deleteLeaveType = (id: number) => apiClient.delete(`/leave-types/${id}`);
 
 // 學年管理
 export const getAcademicYears = () => apiClient.get('/academic/years');
-export const createAcademicYear = (data: any) => apiClient.post('/academic/years', data);
-export const updateAcademicYear = (id: number, data: any) => apiClient.put(`/academic/years/${id}`, data);
+export const createAcademicYear = (data: CreateAcademicYearPayload) => apiClient.post('/academic/years', data);
+export const updateAcademicYear = (id: number, data: UpdateAcademicYearPayload) => apiClient.put(`/academic/years/${id}`, data);
 export const deleteAcademicYear = (id: number) => apiClient.delete(`/academic/years/${id}`);
 export const promoteStudents = (academicYearId: number) => apiClient.post(`/academic/years/${academicYearId}/promote`);
 
 // 學季管理
 export const getSeasons = () => apiClient.get('/academic/seasons');
 export const getSeason = (id: number) => apiClient.get(`/academic/seasons/${id}`);
-export const createSeason = (data: any) => apiClient.post('/academic/seasons', data);
-export const updateSeason = (id: number, data: any) => apiClient.put(`/academic/seasons/${id}`, data);
+export const createSeason = (data: CreateSeasonPayload) => apiClient.post('/academic/seasons', data);
+export const updateSeason = (id: number, data: UpdateSeasonPayload) => apiClient.put(`/academic/seasons/${id}`, data);
 export const deleteSeason = (id: number) => apiClient.delete(`/academic/seasons/${id}`);
 
 // 假日管理
@@ -157,19 +181,19 @@ export const getHolidays = (seasonId?: number) => {
   const params = seasonId ? `?seasonId=${seasonId}` : '';
   return apiClient.get(`/academic/holidays${params}`);
 };
-export const createHoliday = (data: any) => apiClient.post('/academic/holidays', data);
+export const createHoliday = (data: CreateHolidayPayload) => apiClient.post('/academic/holidays', data);
 export const deleteHoliday = (id: number) => apiClient.delete(`/academic/holidays/${id}`);
 
 // 學生管理
-export const getStudents = (params?: any) => {
+export const getStudents = (params?: GetStudentsParams) => {
   const queryString = params ? buildQueryParams(params) : '';
   return apiClient.get(`/students${queryString ? '?' + queryString : ''}`);
 };
-export const createStudent = (data: any) => apiClient.post('/students', data);
-export const updateStudent = (id: number, data: any) => apiClient.put(`/students/${id}`, data);
+export const createStudent = (data: CreateStudentPayload) => apiClient.post('/students', data);
+export const updateStudent = (id: number, data: UpdateStudentPayload) => apiClient.put(`/students/${id}`, data);
 export const deleteStudent = (id: number) => apiClient.delete(`/students/${id}`);
 
 // 學生班級註冊管理
-export const createStudentEnrollment = (data: any) => apiClient.post('/students/enrollments', data);
-export const updateStudentEnrollment = (id: number, data: any) => apiClient.put(`/students/enrollments/${id}`, data);
+export const createStudentEnrollment = (data: CreateStudentEnrollmentPayload) => apiClient.post('/students/enrollments', data);
+export const updateStudentEnrollment = (id: number, data: UpdateStudentEnrollmentPayload) => apiClient.put(`/students/enrollments/${id}`, data);
 export const getStudentEnrollments = (studentId: number) => apiClient.get(`/students/${studentId}/enrollments`);

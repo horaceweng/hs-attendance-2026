@@ -9,7 +9,6 @@ import { ReportPage } from './pages/ReportPage';
 import { StatisticsReportPage } from './pages/StatisticsReportPage';
 import { LoginPage } from './pages/LoginPage';
 import { AdminPage } from './pages/AdminPage';
-import { TokenDebugPage } from './pages/TokenDebugPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { getDesignTokens } from './theme'; // <-- 導入我們的主題設定
 import { getUserRole } from './services/auth'; // <-- 導入使用者角色函數
@@ -27,7 +26,6 @@ const Navigation = () => {
         {userRole === 'GA_specialist' && (
           <Button color="inherit" component={Link} to="/admin">系統管理</Button>
         )}
-        <Button color="inherit" component={Link} to="/debug-token" sx={{ ml: 'auto' }}>查看登入狀態</Button>
       </Toolbar>
     </AppBar>
   );
@@ -65,7 +63,6 @@ function App() {
                       <Route path="attendance" element={<AttendancePage />} />
                       <Route path="leave-request" element={<LeaveRequestPage />} />
                       <Route path="admin" element={<AdminPage />} />
-                      <Route path="debug-token" element={<TokenDebugPage />} />
                       <Route index element={<Navigate to="/reports" replace />} />
                     </Routes>
                   </Box>

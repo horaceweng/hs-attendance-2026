@@ -26,32 +26,9 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import { getTeachers, getGASpecialists, createTeacher, createGASpecialist, deleteUser } from '../../services/api';
+import { TabPanel } from '../../components/TabPanel';
 
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
-
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`personnel-tabpanel-${index}`}
-      aria-labelledby={`personnel-tab-${index}`}
-      {...other}
-    >
-      {value === index && (
-        <Box sx={{ p: 3 }}>
-          {children}
-        </Box>
-      )}
-    </div>
-  );
-}
+const TAB_PREFIX = 'personnel-tab';
 
 interface User {
   id: number;
@@ -209,7 +186,7 @@ const PersonnelManagementTab: React.FC = () => {
           </Tabs>
         </Box>
 
-        <TabPanel value={tabValue} index={0}>
+        <TabPanel value={tabValue} index={0} prefix={TAB_PREFIX}>
           {isLoading ? (
             <Box display="flex" justifyContent="center" p={3}>
               <CircularProgress />
@@ -253,7 +230,7 @@ const PersonnelManagementTab: React.FC = () => {
           )}
         </TabPanel>
 
-        <TabPanel value={tabValue} index={1}>
+        <TabPanel value={tabValue} index={1} prefix={TAB_PREFIX}>
           {isLoading ? (
             <Box display="flex" justifyContent="center" p={3}>
               <CircularProgress />

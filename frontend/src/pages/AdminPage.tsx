@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Box, Tabs, Tab, Typography, Paper } from '@mui/material';
 import { Navigate } from 'react-router-dom';
 import { getUserRole } from '../services/auth';
+import { TabPanel, a11yProps } from '../components/TabPanel';
 import AcademicTermsTab from './admin/AcademicTermsTab';
 import HolidaysTab from './admin/HolidaysTab';
 import StudentManagementTab from './admin/StudentManagementTab';
@@ -10,38 +11,7 @@ import ClassManagementTab from './admin/ClassManagementTab';
 import LeaveTypeManagementTab from './admin/LeaveTypeManagementTab';
 import PersonnelManagementTab from './admin/PersonnelManagementTab';
 
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
-
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`admin-tabpanel-${index}`}
-      aria-labelledby={`admin-tab-${index}`}
-      {...other}
-    >
-      {value === index && (
-        <Box sx={{ p: 3 }}>
-          {children}
-        </Box>
-      )}
-    </div>
-  );
-}
-
-function a11yProps(index: number) {
-  return {
-    id: `admin-tab-${index}`,
-    'aria-controls': `admin-tabpanel-${index}`,
-  };
-}
+const TAB_PREFIX = 'admin-tab';
 
 export const AdminPage: React.FC = () => {
   const [tabValue, setTabValue] = useState(0);
@@ -77,36 +47,36 @@ export const AdminPage: React.FC = () => {
             variant="scrollable"
             scrollButtons="auto"
           >
-            <Tab label="學年學期管理" {...a11yProps(0)} />
-            <Tab label="假日管理" {...a11yProps(1)} />
-            <Tab label="學生管理" {...a11yProps(2)} />
-            <Tab label="班級管理" {...a11yProps(3)} />
-            <Tab label="假別管理" {...a11yProps(4)} />
-            <Tab label="人員管理" {...a11yProps(5)} />
+            <Tab label="學年學期管理" {...a11yProps(TAB_PREFIX, 0)} />
+            <Tab label="假日管理" {...a11yProps(TAB_PREFIX, 1)} />
+            <Tab label="學生管理" {...a11yProps(TAB_PREFIX, 2)} />
+            <Tab label="班級管理" {...a11yProps(TAB_PREFIX, 3)} />
+            <Tab label="假別管理" {...a11yProps(TAB_PREFIX, 4)} />
+            <Tab label="人員管理" {...a11yProps(TAB_PREFIX, 5)} />
           </Tabs>
         </Box>
-        
-        <TabPanel value={tabValue} index={0}>
+
+        <TabPanel value={tabValue} index={0} prefix={TAB_PREFIX}>
           <AcademicTermsTab />
         </TabPanel>
-        
-        <TabPanel value={tabValue} index={1}>
+
+        <TabPanel value={tabValue} index={1} prefix={TAB_PREFIX}>
           <HolidaysTab />
         </TabPanel>
-        
-        <TabPanel value={tabValue} index={2}>
+
+        <TabPanel value={tabValue} index={2} prefix={TAB_PREFIX}>
           <StudentManagementTab />
         </TabPanel>
-        
-        <TabPanel value={tabValue} index={3}>
+
+        <TabPanel value={tabValue} index={3} prefix={TAB_PREFIX}>
           <ClassManagementTab />
         </TabPanel>
-        
-        <TabPanel value={tabValue} index={4}>
+
+        <TabPanel value={tabValue} index={4} prefix={TAB_PREFIX}>
           <LeaveTypeManagementTab />
         </TabPanel>
-        
-        <TabPanel value={tabValue} index={5}>
+
+        <TabPanel value={tabValue} index={5} prefix={TAB_PREFIX}>
           <PersonnelManagementTab />
         </TabPanel>
       </Paper>

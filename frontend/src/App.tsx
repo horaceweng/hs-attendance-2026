@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom';
-import { Box, AppBar, Toolbar, Button, useMediaQuery, createTheme, ThemeProvider, CssBaseline } from '@mui/material';
+import { Box, AppBar, Toolbar, Button, Typography, useMediaQuery, createTheme, ThemeProvider, CssBaseline } from '@mui/material';
 import { LeaveRequestPage } from './pages/LeaveRequestPage';
 import { AttendancePage } from './pages/AttendancePage';
 import { ReportPage } from './pages/ReportPage';
@@ -28,6 +28,15 @@ const Navigation = () => {
     </AppBar>
   );
 };
+
+// 404 頁面：任何未匹配到的路徑都導向此處，提供文字說明與返回連結
+const NotFoundPage = () => (
+  <Box sx={{ textAlign: 'center', mt: 8 }}>
+    <Typography variant="h4" gutterBottom>找不到頁面</Typography>
+    <Typography variant="body1" sx={{ mb: 2 }}>您造訪的網址不存在，或已經被移除。</Typography>
+    <Button variant="contained" component={Link} to="/reports">返回首頁</Button>
+  </Box>
+);
 
 function App() {
   // 1. 使用 MUI 的 useMediaQuery 來自動偵測使用者是否偏好深色模式
@@ -62,10 +71,11 @@ function App() {
                       <Route path="leave-request" element={<LeaveRequestPage />} />
                       <Route path="admin" element={<AdminPage />} />
                       <Route index element={<Navigate to="/reports" replace />} />
+                      <Route path="*" element={<NotFoundPage />} />
                     </Routes>
                   </Box>
                 </Box>
-              } 
+              }
             />
           </Route>
         </Routes>

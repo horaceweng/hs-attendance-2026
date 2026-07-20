@@ -1,6 +1,10 @@
 name: DB Migrate & Seed
 
 # 僅手動觸發:此 workflow 會對生產資料庫執行 migrate 與 seed
+# 注意:資料庫供應商已由 Railway 遷移至 TiDB Cloud Serverless,
+# 此處改用通用的 DATABASE_URL secret 名稱(不再綁定特定供應商)。
+# GitHub repo secret 需手動更新為 TiDB 的連線字串(含 sslaccept=strict),
+# 這是人工操作,無法由程式自動完成。
 on:
   workflow_dispatch:
 
@@ -9,7 +13,7 @@ jobs:
     name: Run Prisma migrations and seed
     runs-on: ubuntu-latest
     env:
-      DATABASE_URL: ${{ secrets.RAILWAY_DATABASE_URL }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

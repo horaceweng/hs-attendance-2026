@@ -1,4 +1,3 @@
-// in src/auth/auth.controller.ts
 import {
   Controller,
   Post,
@@ -41,8 +40,6 @@ export class AuthController {
   @Get('me')
   async getCurrentUser(@Request() req) {
     try {
-      console.log('Auth /me request received, user payload:', req.user);
-
       if (!req.user || !req.user.userId) {
         console.error('Auth /me error: Missing user ID in request');
         return {
@@ -52,7 +49,6 @@ export class AuthController {
       }
 
       const user = await this.authService.getUserById(req.user.userId);
-      console.log(`Auth /me success: Found user with ID ${req.user.userId}`);
 
       return {
         ...user,

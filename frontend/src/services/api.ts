@@ -1,5 +1,3 @@
-// in frontend/src/services/api.ts --- COMPLETE AND CORRECTED
-
 import axios from 'axios';
 
 // Allow overriding the API base URL via Vite env var when building/deploying.
@@ -77,7 +75,6 @@ const buildQueryParams = (params: any) => {
 }
 
 // --- 核心 API ---
-// 修改後：
 export const login = (username: string, password: string) => apiClient.post('/auth/login', { username, password });
 export const getCurrentUser = () => apiClient.get('/auth/me');
 export const getClasses = () => apiClient.get('/classes');
@@ -85,7 +82,7 @@ export const getStudentsByClass = (classId: number) => apiClient.get(`/students/
 export const createLeaveRequest = (data: any) => apiClient.post('/leaves', data);
 export const getLeaveTypes = () => apiClient.get('/leave-types');
 
-// --- 【補回】每日出缺勤登記用的 API 函式 ---
+// --- 每日出缺勤登記用的 API 函式 ---
 export const getAttendanceForClass = (classId: number, date: string) => {
     return apiClient.get(`/attendance/class/${classId}`, { params: { date } });
 };

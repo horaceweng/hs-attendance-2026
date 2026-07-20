@@ -1,5 +1,3 @@
-// 請用此版本完整替換 backend/src/attendance/attendance.controller.ts
-
 import { Controller, Get, Post, Body, Param, ParseIntPipe, Query, UseGuards, Request } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AttendanceService } from './attendance.service';
@@ -16,7 +14,6 @@ export class AttendanceController {
     @Param('classId', ParseIntPipe) classId: number,
     @Query('date') dateString: string,
   ) {
-    console.log(`[AttendanceController] Handling GET /attendance/class/${classId}`); // <-- 加入偵錯日誌
     const date = dateString ? new Date(dateString) : new Date();
     return this.attendanceService.getAttendanceForClass(classId, date);
   }
@@ -27,7 +24,6 @@ export class AttendanceController {
       @Param('classId', ParseIntPipe) classId: number,
       @Body() submitDto: SubmitClassAttendanceDto
   ) {
-      console.log(`[AttendanceController] Handling POST /attendance/class/${classId}`); // <-- 加入偵錯日誌
       const creatorId = req.user.userId;
       return this.attendanceService.recordClassAttendance(classId, creatorId, submitDto);
   }

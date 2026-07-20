@@ -1,8 +1,6 @@
-// in frontend/src/pages/AttendancePage.tsx --- 修正後版本
-
 import React, { useState, useEffect } from 'react';
 import { Box, Button, FormControl, InputLabel, MenuItem, Select, TextField, Typography, CircularProgress, Alert, TableContainer, Paper, Table, TableHead, TableRow, TableCell, TableBody } from '@mui/material';
-import type { SelectChangeEvent } from '@mui/material/Select'; // <-- 修正後的正確匯入路徑
+import type { SelectChangeEvent } from '@mui/material/Select';
 import * as api from '../services/api';
 
 interface Class { id: number; name: string; }

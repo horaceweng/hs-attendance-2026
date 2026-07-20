@@ -221,7 +221,7 @@ export class StatisticsService {
         // 計算實際請假天數（排除假日）
         const leaveDays = this.calculateLeaveDays(leave.startDate, leave.endDate, holidayDates);
         
-        // 由于 Prisma 可能没有正确生成 TypeScript 类型，我们在这里直接使用 any 类型
+        // 由於 Prisma 可能沒有正確生成 TypeScript 類型，我們在這裡直接使用 any 類型
         const leaveAny = leave as any;
         
         // 處理全天請假

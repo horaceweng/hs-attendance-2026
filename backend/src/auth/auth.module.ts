@@ -1,4 +1,3 @@
-// in src/auth/auth.module.ts --- PATH FIXED
 import { Module } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
@@ -8,7 +7,6 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PrismaModule } from 'src/prisma/prisma.module';
 import { LocalStrategy } from './local.strategy';
 import { JwtStrategy } from './jwt.strategy';
-// 【路徑修正】從正確的路徑導入 Guard
 import { ClassAccessGuard } from './guards/class-access/class-access.guard';
 
 @Module({

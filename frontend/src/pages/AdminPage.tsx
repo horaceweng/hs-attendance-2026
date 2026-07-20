@@ -61,7 +61,6 @@ export const AdminPage: React.FC = () => {
 
   // 如果用戶不是管理員，重定向到報表頁面
   if (!isLoading && userRole !== 'GA_specialist') {
-    console.log(`Access denied to AdminPage. User role: ${userRole}`);
     return <Navigate to="/reports" replace />;
   }
 

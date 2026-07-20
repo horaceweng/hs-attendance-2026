@@ -74,50 +74,6 @@ export class AcademicController {
   removeAcademicYear(@Param('id', ParseIntPipe) id: number) {
     return this.academicService.removeAcademicYear(id);
   }
-  
-  // Legacy compatibility routes
-  @Get('academic-years')
-  legacyFindAllAcademicYears() {
-    return this.academicService.findAllAcademicYears();
-  }
-  
-  @Get('academic-years/:id')
-  legacyFindOneAcademicYear(@Param('id', ParseIntPipe) id: number) {
-    return this.academicService.findOneAcademicYear(id);
-  }
-
-  @Post('academic-years')
-  @Roles(Role.GA_specialist)
-  legacyCreateAcademicYear(@Body() data: CreateAcademicYearDto) {
-    // Ensure isActive is a boolean
-    if (data.isActive === undefined) {
-      data.isActive = true; // Default value
-    } else if (typeof data.isActive === 'string') {
-      data.isActive = data.isActive === 'true';
-    }
-    
-    // 檢查是否要自動升級學生
-    const autoPromoteStudents = data.autoPromoteStudents === true;
-    delete data.autoPromoteStudents; // service 僅需學年本體欄位
-
-    return this.academicService.createAcademicYear(data, autoPromoteStudents);
-  }
-
-  @Put('academic-years/:id')
-  @Roles(Role.GA_specialist)
-  legacyUpdateAcademicYear(@Param('id', ParseIntPipe) id: number, @Body() data: UpdateAcademicYearDto) {
-    // Ensure isActive is a boolean
-    if (data.isActive !== undefined && typeof data.isActive === 'string') {
-      data.isActive = data.isActive === 'true';
-    }
-    return this.academicService.updateAcademicYear(id, data);
-  }
-
-  @Delete('academic-years/:id')
-  @Roles(Role.GA_specialist)
-  legacyRemoveAcademicYear(@Param('id', ParseIntPipe) id: number) {
-    return this.academicService.removeAcademicYear(id);
-  }
 
   // Seasons Controller - Primary endpoints
   @Get('academic/seasons')
@@ -157,45 +113,6 @@ export class AcademicController {
   removeSeason(@Param('id', ParseIntPipe) id: number) {
     return this.academicService.removeSeason(id);
   }
-  
-  // Legacy compatibility routes for seasons
-  @Get('seasons')
-  legacyFindAllSeasons(@Query('academicYearId') academicYearId?: string) {
-    return this.academicService.findAllSeasons(academicYearId ? +academicYearId : undefined);
-  }
-  
-  @Get('seasons/:id')
-  legacyFindOneSeason(@Param('id', ParseIntPipe) id: number) {
-    return this.academicService.findOneSeason(id);
-  }
-
-  @Post('seasons')
-  @Roles(Role.GA_specialist)
-  legacyCreateSeason(@Body() data: CreateSeasonDto) {
-    // Ensure isActive is a boolean
-    if (data.isActive === undefined) {
-      data.isActive = true; // Default value
-    } else if (typeof data.isActive === 'string') {
-      data.isActive = data.isActive === 'true';
-    }
-    return this.academicService.createSeason(data);
-  }
-
-  @Put('seasons/:id')
-  @Roles(Role.GA_specialist)
-  legacyUpdateSeason(@Param('id', ParseIntPipe) id: number, @Body() data: UpdateSeasonDto) {
-    // Ensure isActive is a boolean
-    if (data.isActive !== undefined && typeof data.isActive === 'string') {
-      data.isActive = data.isActive === 'true';
-    }
-    return this.academicService.updateSeason(id, data);
-  }
-
-  @Delete('seasons/:id')
-  @Roles(Role.GA_specialist)
-  legacyRemoveSeason(@Param('id', ParseIntPipe) id: number) {
-    return this.academicService.removeSeason(id);
-  }
 
   // Holidays Controller - Primary endpoints
   @Get('academic/holidays')
@@ -219,30 +136,7 @@ export class AcademicController {
   removeHoliday(@Param('id', ParseIntPipe) id: number) {
     return this.academicService.removeHoliday(id);
   }
-  
-  // Legacy compatibility routes for holidays
-  @Get('holidays')
-  legacyFindAllHolidays(@Query('seasonId') seasonId?: string) {
-    return this.academicService.findAllHolidays(seasonId ? +seasonId : undefined);
-  }
-  
-  @Get('holidays/:id')
-  legacyFindOneHoliday(@Param('id', ParseIntPipe) id: number) {
-    return this.academicService.findOneHoliday(id);
-  }
 
-  @Post('holidays')
-  @Roles(Role.GA_specialist)
-  legacyCreateHoliday(@Body() data: CreateHolidayDto) {
-    return this.academicService.createHoliday(data);
-  }
-
-  @Delete('holidays/:id')
-  @Roles(Role.GA_specialist)
-  legacyRemoveHoliday(@Param('id', ParseIntPipe) id: number) {
-    return this.academicService.removeHoliday(id);
-  }
-  
   // 學生升級相關功能 - 使用學年 ID
   @Post('academic/years/:id/promote')
   @Roles(Role.GA_specialist)
@@ -286,18 +180,5 @@ export class AcademicController {
         error: error.message
       };
     }
-  }
-  
-  // 學生升級相關功能 - Legacy routes
-  @Post('academic-years/:id/promote')
-  @Roles(Role.GA_specialist)
-  legacyPromoteStudentsForYear(@Param('id', ParseIntPipe) id: number) {
-    return this.promoteStudentsForYear(id);
-  }
-  
-  @Post('academic-years/by-year/:year/promote')
-  @Roles(Role.GA_specialist)
-  legacyPromoteStudentsByYear(@Param('year', ParseIntPipe) year: number) {
-    return this.promoteStudentsByYear(year);
   }
 }

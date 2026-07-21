@@ -44,7 +44,7 @@ export class LeavesService {
                     ...(startDateTime ? { startTime: startDateTime } : {}),
                     ...(endDateTime ? { endTime: endDateTime } : {}),
                     isFullDay: createLeaveDto.isFullDay ?? true,
-                } as any
+                } satisfies Prisma.LeaveRequestCreateInput
             });
         } catch (error) {
             console.error('建立請假記錄時發生錯誤:', error);

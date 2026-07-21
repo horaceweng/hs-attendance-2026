@@ -2,6 +2,14 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Role } from '@prisma/client';
+
+// AuthService.login() 簽發的 JWT payload 結構
+export interface JwtPayload {
+  sub: number;
+  username: string;
+  role: Role;
+}
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -19,7 +27,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: any) {
+  async validate(payload: JwtPayload) {
     return { userId: payload.sub, username: payload.username, role: payload.role };
   }
 }

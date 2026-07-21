@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Box, FormControl, InputLabel, MenuItem, Select, Typography, CircularProgress, Alert, Paper, TableContainer, Table, TableHead, TableRow, TableCell, TableBody, Button, Card, CardContent } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material/Select';
+import axios from 'axios';
 import * as api from '../services/api';
 import { formatAcademicYear } from '../utils/dateUtils';
 import type { StatisticsReportRow, LeaveTypeCount } from '../types/reports';
@@ -109,9 +110,14 @@ export const StatisticsReportPage: React.FC = () => {
       
       const res = await api.getStatisticsReport(apiParams);
       setReportData(res?.data || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError('產生報表失敗');
-      console.error("API 請求失敗:", err.response?.data || err.message);
+      const detail = axios.isAxiosError(err)
+        ? err.response?.data ?? err.message
+        : err instanceof Error
+          ? err.message
+          : String(err);
+      console.error("API 請求失敗:", detail);
     } finally {
       setLoading(false);
     }

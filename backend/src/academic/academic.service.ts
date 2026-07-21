@@ -1,6 +1,6 @@
 // src/academic/academic.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { AcademicYear } from '@prisma/client';
+import { AcademicYear, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateAcademicYearDto,
@@ -22,6 +22,14 @@ export interface EnrollmentLike {
 
 export interface StudentWithEnrollments<T extends EnrollmentLike = EnrollmentLike> {
   enrollments: T[];
+}
+
+// 含 grade 關聯的班級（getClassesForSchoolYear / promoteStudents 皆以此形狀查詢）
+type ClassWithGrade = Prisma.ClassGetPayload<{ include: { grade: true } }>;
+
+// $queryRaw`SELECT LAST_INSERT_ID() as id` 的回傳列形狀
+interface LastInsertIdRow {
+  id: number;
 }
 
 @Injectable()
@@ -243,7 +251,7 @@ export class AcademicService {
    * 獲取特定學年所有可用的班級
    * @param schoolYear 學年 (例如: 2026)
    */
-  async getClassesForSchoolYear(schoolYear: number): Promise<any[]> {
+  async getClassesForSchoolYear(schoolYear: number): Promise<ClassWithGrade[]> {
     try {
       // 獲取指定學年的所有班級
       const classes = await this.prisma.class.findMany({
@@ -357,7 +365,7 @@ export class AcademicService {
         // 如果有上一學年班級，則使用它們的命名規則
         if (previousYearClasses.length > 0) {
           // 按年級分組
-          const classesByGradeId = new Map<number, any[]>();
+          const classesByGradeId = new Map<number, ClassWithGrade[]>();
           for (const cls of previousYearClasses) {
             if (!classesByGradeId.has(cls.gradeId)) {
               classesByGradeId.set(cls.gradeId, []);
@@ -901,7 +909,9 @@ export class AcademicService {
       
       // Get the last inserted ID
       const result = await this.prisma.$queryRaw`SELECT LAST_INSERT_ID() as id`;
-      const id = Array.isArray(result) ? (result[0] as any).id : (result as any).id;
+      const id = Array.isArray(result)
+        ? (result[0] as LastInsertIdRow).id
+        : (result as LastInsertIdRow).id;
       
       return this.findOneHoliday(id);
     } catch (error) {

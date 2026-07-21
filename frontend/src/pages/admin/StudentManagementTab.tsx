@@ -32,6 +32,15 @@ import * as api from '../../services/api';
   name: string;
 }
 
+interface AcademicYear {
+  id: number;
+  year: number;
+  name: string;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+}
+
 const StudentManagementTab: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true); // used to show loading state
@@ -262,7 +271,7 @@ const StudentManagementTab: React.FC = () => {
       if (studentForm.classId && (dialogMode === 'new' || dialogMode === 'transfer')) {
         // 獲取當前活躍學年
         const academicYearsResponse = await api.getAcademicYears();
-        const activeYear = academicYearsResponse.data.find((y: any) => y.isActive);
+        const activeYear = (academicYearsResponse.data as AcademicYear[]).find((y) => y.isActive);
         
         if (activeYear) {
           // 創建學生的班級註冊

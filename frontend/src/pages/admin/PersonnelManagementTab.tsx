@@ -25,6 +25,7 @@ import {
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import axios from 'axios';
 import { getTeachers, getGASpecialists, createTeacher, createGASpecialist, deleteUser } from '../../services/api';
 import { TabPanel } from '../../components/TabPanel';
 
@@ -138,9 +139,12 @@ const PersonnelManagementTab: React.FC = () => {
       setTimeout(() => {
         setSuccessMessage(null);
       }, 3000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to delete user:', err);
-      setError(err.response?.data?.message || '刪除人員失敗');
+      const message = axios.isAxiosError<{ message?: string }>(err)
+        ? err.response?.data?.message
+        : undefined;
+      setError(message || '刪除人員失敗');
     } finally {
       setIsLoading(false);
     }

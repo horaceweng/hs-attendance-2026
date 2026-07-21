@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { User } from '@prisma/client';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -56,7 +57,9 @@ describe('AuthService', () => {
 
       expect(mockPrismaService.user.findFirst).toHaveBeenCalledWith({ where: { name: 'alice' } });
       expect(result).toEqual({ id: 1, name: 'alice', role: 'teacher' });
-      expect(result.passwordHash).toBeUndefined();
+      expect(
+        (result as { passwordHash?: string }).passwordHash,
+      ).toBeUndefined();
     });
 
     it('returns null when the password is wrong', async () => {
@@ -91,7 +94,11 @@ describe('AuthService', () => {
   describe('login', () => {
     it('signs a JWT payload with username, sub, and role', async () => {
       mockJwtService.sign.mockReturnValue('signed-jwt');
-      const user = { id: 1, name: 'alice', role: 'teacher' };
+      const user: Pick<User, 'id' | 'name' | 'role'> = {
+        id: 1,
+        name: 'alice',
+        role: 'teacher',
+      };
 
       const result = await service.login(user);
 

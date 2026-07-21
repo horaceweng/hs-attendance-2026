@@ -130,13 +130,18 @@ TiDB Cloud Serverless(MySQL 協議相容)
 
 5. **環境變數**:新增 `VITE_API_BASE_URL`,值設為後端 Render Web Service 的網址(例如 `https://xxx-backend.onrender.com`,不含結尾斜線)。這個變數是**建置時**注入(Vite 的環境變數機制),修改後需要重新觸發 build 才會生效,對應 `frontend/src/services/api.ts` 中 `baseURL` 的讀取邏輯。
 
-6. **設定 Response Headers(CSP)**:`frontend/index.html` 中的 `<meta http-equiv="Content-Security-Policy">` 只是開發環境用的預設值(僅允許 `http://localhost:3001`)。正式環境請在 Render Static Site 的服務設定中找到「Response Headers」設定區塊,新增一筆 `Content-Security-Policy` header,內容需將 `connect-src` 指向實際的後端網址,例如:
+6. **設定 Response Headers(CSP)**:`frontend/index.html` 刻意不放 `<meta http-equiv="Content-Security-Policy">`,CSP 一律由 Render Static Site 的 Response Header 設定,原因:瀏覽器對多個來源的 CSP 是「疊加取交集」——若 meta tag 與 HTTP header 同時存在 CSP,兩邊規則都要同時滿足才會放行,並非後者覆蓋前者。如果 meta tag 殘留了只允許 `localhost` 的開發用規則,即使 Response Header 設定了正確的正式環境網域,瀏覽器仍會因為 meta tag 那邊不允許而擋下所有 API 請求(症狀:瀏覽器開發者工具的 Network 分頁顯示請求狀態是 `(blocked:csp)`)。
+
+   在 Render Static Site 的服務設定中找到「Response Headers」設定區塊,新增一筆(Request Path 填 `/*`):
+
+   - **Header Name**:`Content-Security-Policy`
+   - **Header Value**:
 
    ```
    default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; connect-src 'self' https://xxx-backend.onrender.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:;
    ```
 
-   透過 Render dashboard 設定的 Response Header 會覆蓋 HTML 中的 `<meta>` CSP(瀏覽器以較嚴格/後到的 CSP 為準,實務上以 HTTP header 設定為主要來源)。若後端網址變更,記得同步更新此處。
+   把 `connect-src` 裡的 `https://xxx-backend.onrender.com` 換成實際的後端網址。若後端網址變更,記得同步更新此處。
 
 ---
 

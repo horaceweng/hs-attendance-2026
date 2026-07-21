@@ -5,13 +5,14 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!--
-      以下 CSP 為開發環境用的預設值(僅允許本機後端 http://localhost:3001)。
-      正式環境部署到 Render Static Site 時,請改由 Render dashboard 的
-      「Response Headers」設定 Content-Security-Policy,將 connect-src
-      指向實際的後端網域,以覆蓋此處的 meta tag(靜態 HTML 無法在建置時
-      動態注入環境變數到 meta tag 內容)。
+      CSP 刻意不在此以 meta tag 設定。瀏覽器對多重 CSP 來源採「疊加取交集」,
+      HTTP Response Header 與 meta tag 的 CSP 會同時生效、缺一不可放行,並非
+      後者覆蓋前者。若在這裡放開發用的 connect-src(僅允許 localhost),即使
+      正式環境另外用 Response Header 設定了正確的後端網域,瀏覽器仍會因為
+      meta tag 這邊不允許而擋下所有正式環境的 API 請求。
+      CSP 一律由部署平台(Render Static Site 的「Response Headers」設定)
+      集中管理,開發環境不需要 CSP 限制。
     -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; connect-src 'self' http://localhost:3001; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:;" />
     <title>學生出缺勤系統</title>
   </head>
   <body>

@@ -69,18 +69,16 @@ TiDB Cloud Serverless(MySQL 協議相容)
 4. **Start Command**:
 
    ```
-   npm run build && npm run start:prod
+   npm run start:prod
    ```
 
-   （`start:prod` 對應 `backend/package.json` 中的 `"start:prod": "node dist/main"`。Start Command 額外多跑一次 `npm run build` 是防禦性作法,確保執行環境裡一定有最新的 `dist/`。）
+   （對應 `backend/package.json` 中的 `"start:prod": "node dist/main"`。）
 
-   > **已知問題:`Cannot find module '.../dist/main'`,即使 build log 顯示成功**
+   > **已知問題(已修復):`Cannot find module '.../dist/main'`,即使 build log 顯示成功**
    >
-   > 實際部署時曾遇到 `nest build` 在 Render 上以退出碼 0「成功」結束,卻沒有真的產生 `dist/main.js`(即使把 build 塞進 Start Command、build 與 start 在同一個容器內背靠背執行,結果依然相同,可排除 Render build 產物打包/上傳流程的影響)。
+   > 實際部署時曾遇到此問題,`nest build` 表面上成功,產生的檔案卻是 `dist/src/main.js` 而非 `dist/main.js`。根因是 `backend/tsconfig.json` 未明確設定 `rootDir`,而 `tsconfig.build.json` 的 `exclude` 清單沒有排除 `backend/prisma/seed.ts`、`backend/scripts/debug-leave-match.ts` 這兩個 `src/` 之外的檔案,導致 TypeScript 把編譯範圍的共同根目錄推到整個 `backend/`,輸出結構跟著變成巢狀的 `dist/src/...`。
    >
-   > 根因是 **Node.js 版本不一致**:本專案開發與所有測試皆在 Node 22 下驗證,而 Render 若未指定版本,會用它當下的預設值(曾觀察到自動選用 Node 24,一個發布不久的非 LTS 版本),NestJS CLI 編譯工具鏈(含 `@swc/core` 等原生模組)在該版本下編譯異常但未正確回報失敗。
-   >
-   > **解法**:在 `backend/`(以及 `frontend/`)各放一個 `.node-version` 檔案,內容為 `22`,鎖定 Render 使用的 Node 版本與本地開發一致。Render 會自動偵測並套用此檔案,不需要在 dashboard 額外設定。
+   > 本地開發使用的 `start:dev`/`test` 都直接執行 TypeScript 原始碼,從未經過 `dist/main.js` 這條路徑,因此這個問題直到第一次實際執行 `start:prod` 部署時才被發現。已在 `tsconfig.build.json` 明確指定 `rootDir: "src"` 並排除 `prisma/`、`scripts/` 修復,`dist/main.js` 現在會直接產生在正確位置。若日後在 `backend/` 下新增不屬於 `src/` 的獨立腳本,記得同步排除,避免同樣問題重演。
 
 5. **環境變數**(對照 `backend/.env.example` 逐一設定,於服務設定的環境變數區塊新增):
 

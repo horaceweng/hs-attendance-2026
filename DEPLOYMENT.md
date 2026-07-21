@@ -72,13 +72,15 @@ TiDB Cloud Serverless(MySQL 協議相容)
    npm run build && npm run start:prod
    ```
 
-   （`start:prod` 對應 `backend/package.json` 中的 `"start:prod": "node dist/main"`。**務必在 Start Command 裡再跑一次 build**,原因見下方「已知問題」。）
+   （`start:prod` 對應 `backend/package.json` 中的 `"start:prod": "node dist/main"`。Start Command 額外多跑一次 `npm run build` 是防禦性作法,確保執行環境裡一定有最新的 `dist/`。）
 
-   > **已知問題:僅在 Build Command 跑 build 會導致 `Cannot find module '.../dist/main'`**
+   > **已知問題:`Cannot find module '.../dist/main'`,即使 build log 顯示成功**
    >
-   > Render 的 Node.js(非 Docker)服務會在一個 build 容器執行 Build Command,再把結果「打包上傳」到實際執行 Start Command 的容器。這個打包步驟會參考 `.gitignore`——而 `backend/.gitignore` 有 `/dist`(避免編譯產物進 git 是對的做法),導致打包上傳時 `dist/` 被濾掉,build log 會顯示 `Build successful 🎉`,但啟動時卻找不到 `dist/main.js`。
+   > 實際部署時曾遇到 `nest build` 在 Render 上以退出碼 0「成功」結束,卻沒有真的產生 `dist/main.js`(即使把 build 塞進 Start Command、build 與 start 在同一個容器內背靠背執行,結果依然相同,可排除 Render build 產物打包/上傳流程的影響)。
    >
-   > 解法就是讓 build 動作發生在「實際要執行的容器」裡,所以 Start Command 要包含 `npm run build`。NestJS 編譯很快,重複執行不影響部署時間太多。
+   > 根因是 **Node.js 版本不一致**:本專案開發與所有測試皆在 Node 22 下驗證,而 Render 若未指定版本,會用它當下的預設值(曾觀察到自動選用 Node 24,一個發布不久的非 LTS 版本),NestJS CLI 編譯工具鏈(含 `@swc/core` 等原生模組)在該版本下編譯異常但未正確回報失敗。
+   >
+   > **解法**:在 `backend/`(以及 `frontend/`)各放一個 `.node-version` 檔案,內容為 `22`,鎖定 Render 使用的 Node 版本與本地開發一致。Render 會自動偵測並套用此檔案,不需要在 dashboard 額外設定。
 
 5. **環境變數**(對照 `backend/.env.example` 逐一設定,於服務設定的環境變數區塊新增):
 

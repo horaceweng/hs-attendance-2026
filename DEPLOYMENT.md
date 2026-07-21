@@ -69,10 +69,16 @@ TiDB Cloud Serverless(MySQL 協議相容)
 4. **Start Command**:
 
    ```
-   npm run start:prod
+   npm run build && npm run start:prod
    ```
 
-   （對應 `backend/package.json` 中的 `"start:prod": "node dist/main"`。）
+   （`start:prod` 對應 `backend/package.json` 中的 `"start:prod": "node dist/main"`。**務必在 Start Command 裡再跑一次 build**,原因見下方「已知問題」。）
+
+   > **已知問題:僅在 Build Command 跑 build 會導致 `Cannot find module '.../dist/main'`**
+   >
+   > Render 的 Node.js(非 Docker)服務會在一個 build 容器執行 Build Command,再把結果「打包上傳」到實際執行 Start Command 的容器。這個打包步驟會參考 `.gitignore`——而 `backend/.gitignore` 有 `/dist`(避免編譯產物進 git 是對的做法),導致打包上傳時 `dist/` 被濾掉,build log 會顯示 `Build successful 🎉`,但啟動時卻找不到 `dist/main.js`。
+   >
+   > 解法就是讓 build 動作發生在「實際要執行的容器」裡,所以 Start Command 要包含 `npm run build`。NestJS 編譯很快,重複執行不影響部署時間太多。
 
 5. **環境變數**(對照 `backend/.env.example` 逐一設定,於服務設定的環境變數區塊新增):
 

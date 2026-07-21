@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Button, FormControl, InputLabel, MenuItem, Select, TextField, Typography, CircularProgress, Alert, Paper, TableContainer, Table, TableHead, TableRow, TableCell, TableBody, Chip, OutlinedInput, Checkbox, ListItemText, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material/Select';
+import axios from 'axios';
 import * as api from '../services/api';
 import { getUserRole } from '../services/auth'; // Import getUserRole
 import type {
@@ -138,9 +139,14 @@ export const ReportPage: React.FC = () => {
                 res = await api.getUnresolvedAbsencesReport(gradeParams);
             }
             setReportData(res?.data || []);
-        } catch (err: any) {
+        } catch (err: unknown) {
             setError('產生報表失敗');
-            console.error("API 請求失敗:", err.response?.data || err.message);
+            const detail = axios.isAxiosError(err)
+                ? err.response?.data ?? err.message
+                : err instanceof Error
+                    ? err.message
+                    : String(err);
+            console.error("API 請求失敗:", detail);
         } finally {
             setLoading(false);
         }

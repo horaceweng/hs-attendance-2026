@@ -1,7 +1,12 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { User } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
+
+// 已過濾掉 passwordHash 的使用者物件，validateUser 的回傳型別、
+// LocalStrategy.validate 的回傳型別皆共用此型別
+export type SafeUser = Omit<User, 'passwordHash'>;
 
 @Injectable()
 export class AuthService {
@@ -11,7 +16,7 @@ export class AuthService {
   ) {}
 
   // 驗證使用者帳號密碼
-  async validateUser(username: string, pass: string): Promise<any> {
+  async validateUser(username: string, pass: string): Promise<SafeUser | null> {
     const user = await this.prisma.user.findFirst({
       where: { name: username },
     });
@@ -32,7 +37,7 @@ export class AuthService {
   }
 
   // 登入並簽發 JWT
-  async login(user: any) {
+  async login(user: Pick<User, 'id' | 'name' | 'role'>) {
     const payload = { username: user.name, sub: user.id, role: user.role };
     return {
       access_token: this.jwtService.sign(payload),
